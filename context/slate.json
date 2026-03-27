@@ -1,0 +1,32 @@
+{
+  "projects": [
+    "Generational Love",
+    "Unwell",
+    "Fox & Hound",
+    "American Proof",
+    "Somnia"
+  ],
+  "relationships": [
+    {
+      "entity": "Sony Pictures Television",
+      "type": "studio",
+      "nature": "First-look deal through Very Varner Inc"
+    },
+    {
+      "entity": "Audiochuck",
+      "type": "company",
+      "nature": "Active opportunity — interviewed for Head of Scripted TV under Matt Shanfield",
+      "notes": "Audiochuck expanding into TV/film vertical with Chernin investment. Matt Shanfield hired March 2026. UTA repping."
+    },
+    {
+      "entity": "Netflix",
+      "type": "platform",
+      "nature": "Key buyer relationship"
+    }
+  ],
+  "active_conversations": [
+    "Audiochuck scripted TV role",
+    "Sony first-look development slate"
+  ],
+  "updated_at": "2026-03-27"
+}

@@ -1,0 +1,17 @@
+{
+  "active": [
+    "Audiochuck expansion and team build",
+    "Netflix video podcasting strategy",
+    "Audio-to-scripted pipeline deals",
+    "Chernin Group entertainment investments",
+    "Creator-led company expansions into filmed content",
+    "Matt Shanfield's Audiochuck team hires"
+  ],
+  "background": [
+    "General streaming subscriber numbers",
+    "Award season positioning",
+    "Routine casting announcements"
+  ],
+  "notes": "Tier 3 items should only fire for things touching the active list. Background items are not worth flagging unless they carry structural implications.",
+  "updated_at": "2026-03-27"
+}

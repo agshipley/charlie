@@ -1,0 +1,99 @@
+"""
+Analysis Agent — runs inference chains, detects discrepancies, ranks findings.
+
+Takes raw signals from the Ingestion Agent and produces ranked findings
+with forward implications, discrepancy flags, and tier recommendations.
+"""
+
+import json
+import re
+from datetime import date
+
+from core.client import call_agent
+from core.config import config
+from core.state import StateManager
+from core.prompts import build_analysis_prompt
+
+
+def run_analysis(signals: list[dict] | None = None, run_date: date | None = None) -> dict:
+    """
+    Execute an analysis run.
+
+    Takes signals (or loads today's from state) and produces ranked findings
+    with inference chains and discrepancy detection.
+
+    Returns the analysis result dict with findings.
+    """
+    run_date = run_date or date.today()
+    state = StateManager()
+    print(f"[Analysis] Starting run for {run_date.isoformat()}")
+
+    # Load signals if not provided
+    if signals is None:
+        signals = state.load_signals(run_date)
+        if not signals:
+            print("[Analysis] No signals found for today. Aborting.")
+            return {"findings": [], "meta": {"signals_analyzed": 0}}
+
+    # Load context
+    context = state.load_context()
+    thesis = state.load_thesis()
+
+    # Build the prompt
+    system_prompt = build_analysis_prompt(context, thesis)
+
+    # Format signals for the agent
+    signals_text = json.dumps(signals, indent=2)
+    user_message = f"""Analyze the following {len(signals)} signals extracted today.
+
+Run inference chains on each. Identify discrepancies. Cross-reference for patterns.
+Rank by implication weight. Flag thesis-relevant findings. Recommend tier placement
+for The Brief.
+
+## Signals
+```json
+{signals_text}
+```
+
+Produce your analysis in the specified JSON format."""
+
+    # Run the analysis agent — use Opus for deeper reasoning
+    print(f"[Analysis] Analyzing {len(signals)} signals...")
+    result = call_agent(
+        system_prompt=system_prompt,
+        user_message=user_message,
+        model=config.model_deep,
+    )
+
+    # Parse findings
+    analysis = _parse_analysis(result["text"])
+    print(f"[Analysis] Produced {len(analysis.get('findings', []))} findings")
+
+    return analysis
+
+
+def _parse_analysis(text: str) -> dict:
+    """Extract analysis JSON from agent output."""
+    json_match = re.search(r"```json\s*([\s\S]*?)\s*```", text)
+    if json_match:
+        try:
+            return json.loads(json_match.group(1))
+        except json.JSONDecodeError:
+            pass
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    print("[Analysis] WARNING: Could not parse analysis from agent output")
+    return {"findings": [], "meta": {"parse_error": True}}
+
+
+if __name__ == "__main__":
+    result = run_analysis()
+    findings = result.get("findings", [])
+    print(f"\nProduced {len(findings)} findings:")
+    for f in findings:
+        tier = f.get("tier_recommendation", "none")
+        print(f"  [{tier}] {f.get('headline', 'No headline')} (weight: {f.get('implication_weight', '?')})")

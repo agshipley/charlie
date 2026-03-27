@@ -1,0 +1,2 @@
+# This directory stores daily signal extractions (one JSON file per run date).
+# Files are gitignored. The directory structure is preserved.

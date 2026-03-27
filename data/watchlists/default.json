@@ -1,0 +1,36 @@
+{
+  "companies": [
+    "Audiochuck",
+    "Sony Pictures Television",
+    "Netflix",
+    "Spotify",
+    "Wondery",
+    "Amazon MGM Studios",
+    "A24",
+    "Chernin Group",
+    "iHeartMedia",
+    "Lemonada Media",
+    "Crooked Media",
+    "Pushkin Industries",
+    "Gimlet",
+    "Serial Productions"
+  ],
+  "people": [
+    "Ashley Flowers",
+    "Matt Shanfield",
+    "Peter Chernin"
+  ],
+  "patterns": [
+    "Audio/podcast companies announcing TV or film divisions",
+    "Investments in creator-led media companies",
+    "Hiring for TV/film development roles at non-traditional companies",
+    "Streamer show order rate changes",
+    "Viewership data contradicting platform narratives",
+    "Creator-to-studio deal announcements",
+    "Podcast IP adaptation deals",
+    "Video podcasting expansion by platforms",
+    "MCN or creator economy company restructuring",
+    "Newsletter or Substack content being optioned for development"
+  ],
+  "updated_at": "2026-03-27"
+}
