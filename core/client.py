@@ -1,12 +1,16 @@
 import anthropic
 import time
 import json
+from datetime import datetime
 from .config import config
 
 
 def get_client():
-    """Return an Anthropic client instance."""
-    return anthropic.Anthropic(api_key=config.api_key)
+    """Return an Anthropic client instance with extended timeout."""
+    return anthropic.Anthropic(
+        api_key=config.api_key,
+        timeout=300.0,  # 5 minute timeout per request
+    )
 
 
 def call_agent(
@@ -20,22 +24,7 @@ def call_agent(
 ) -> dict:
     """
     Run a full agent loop: send a message, handle tool use, repeat until done.
-
-    Args:
-        system_prompt: The system prompt defining agent behavior.
-        user_message: The initial user message that kicks off the agent.
-        tools: List of tool definitions (including web_search if needed).
-        tool_handlers: Dict mapping tool names to handler functions.
-            Each handler receives the tool input dict and returns a string result.
-        model: Which model to use. Defaults to config.model_daily.
-        max_tokens: Max tokens per response.
-        max_iterations: Safety limit on agent loop iterations.
-
-    Returns:
-        dict with:
-            - "text": The final text output from the agent.
-            - "messages": Full conversation history.
-            - "tool_results": List of all tool results collected.
+    Prints real-time progress so you always know what's happening.
     """
     client = get_client()
     model = model or config.model_daily
@@ -46,25 +35,31 @@ def call_agent(
     collected_tool_results = []
 
     for iteration in range(max_iterations):
-        # Retry loop for rate limits
+        _log(f"API call {iteration + 1}/{max_iterations} → {model}")
+        start = time.time()
+
         response = _call_with_retry(
             client, model, system_prompt, tools, messages, max_tokens
         )
+
+        elapsed = time.time() - start
+        _log(f"Response in {elapsed:.1f}s — stop_reason: {response.stop_reason}")
 
         # Add assistant response to history
         messages.append({"role": "assistant", "content": response.content})
 
         if response.stop_reason == "end_turn":
-            # Agent is done — collect final text
             for block in response.content:
                 if hasattr(block, "text"):
                     collected_text.append(block.text)
+            _log("Agent finished.")
             break
 
         elif response.stop_reason == "tool_use":
             tool_results = []
             for block in response.content:
                 if block.type == "tool_use":
+                    _log(f"  Tool: {block.name}")
                     handler = tool_handlers.get(block.name)
                     if handler:
                         result = handler(block.input)
@@ -79,7 +74,7 @@ def call_agent(
                             "content": result if isinstance(result, str) else json.dumps(result),
                         })
                     elif block.name == "web_search":
-                        # Web search is handled by the API itself — no handler needed
+                        # Web search is handled by the API itself
                         pass
                     else:
                         tool_results.append({
@@ -88,15 +83,17 @@ def call_agent(
                             "content": f"Error: No handler registered for tool '{block.name}'",
                         })
 
-                # Also collect any text blocks in tool_use responses
-                if hasattr(block, "text"):
+                if hasattr(block, "text") and block.text:
+                    # Print a preview of what the agent is thinking
+                    preview = block.text[:120].replace("\n", " ")
+                    _log(f"  Agent: {preview}...")
                     collected_text.append(block.text)
 
             if tool_results:
                 messages.append({"role": "user", "content": tool_results})
 
         else:
-            # Unexpected stop reason
+            _log(f"Unexpected stop_reason: {response.stop_reason}")
             for block in response.content:
                 if hasattr(block, "text"):
                     collected_text.append(block.text)
@@ -109,8 +106,8 @@ def call_agent(
     }
 
 
-def _call_with_retry(client, model, system, tools, messages, max_tokens, max_retries=3):
-    """Call the API with retry logic for rate limits."""
+def _call_with_retry(client, model, system, tools, messages, max_tokens, max_retries=5):
+    """Call the API with retry logic for rate limits, connection errors, and server errors."""
     for attempt in range(max_retries):
         try:
             kwargs = {
@@ -124,6 +121,23 @@ def _call_with_retry(client, model, system, tools, messages, max_tokens, max_ret
             return client.messages.create(**kwargs)
         except anthropic.RateLimitError:
             wait_time = 30 * (attempt + 1)
-            print(f"  Rate limit hit, waiting {wait_time}s (attempt {attempt + 1}/{max_retries})...")
+            _log(f"  Rate limit hit, retrying in {wait_time}s ({attempt + 1}/{max_retries})")
             time.sleep(wait_time)
-    raise Exception("Max retries exceeded for rate limit")
+        except anthropic.APIConnectionError as e:
+            wait_time = 10 * (attempt + 1)
+            _log(f"  Connection error: {e}. Retrying in {wait_time}s ({attempt + 1}/{max_retries})")
+            time.sleep(wait_time)
+        except anthropic.APIStatusError as e:
+            if e.status_code >= 500:
+                wait_time = 15 * (attempt + 1)
+                _log(f"  Server error ({e.status_code}), retrying in {wait_time}s ({attempt + 1}/{max_retries})")
+                time.sleep(wait_time)
+            else:
+                raise
+    raise Exception(f"Max retries ({max_retries}) exceeded")
+
+
+def _log(msg: str):
+    """Print a timestamped log message."""
+    ts = datetime.now().strftime("%H:%M:%S")
+    print(f"  [{ts}] {msg}")

@@ -1,8 +1,12 @@
 """
 Ingestion Agent — monitors entertainment industry sources and extracts signals.
 
-Runs daily. Uses web search to scan narrative and data sources, then extracts
-structured signal objects that feed the analysis pipeline.
+Runs daily. Makes multiple small, focused API calls with web search, each scoped
+to a specific search domain. Then a final structuring call (no web search) combines
+the raw results into structured signal objects.
+
+This architecture avoids the timeout problem caused by accumulating too many
+search results in a single API call's context window.
 """
 
 import json
@@ -12,79 +16,118 @@ from datetime import date
 from core.client import call_agent
 from core.config import config
 from core.state import StateManager
-from core.prompts import build_ingestion_prompt
 
 
 WEB_SEARCH_TOOL = {
     "type": "web_search_20250305",
     "name": "web_search",
+    "max_uses": 3,
 }
+
+SYSTEM_SEARCH = """You are a news researcher. Search for the requested topic and return a concise summary of what you find. Include specific names, companies, numbers, dates, and URLs. Be factual, not interpretive."""
+
+SYSTEM_STRUCTURE = """You are a signal extractor for an entertainment industry intelligence system.
+
+You will receive raw search results from multiple research passes. Your job is to extract structured signals — events with forward implications that go beyond what is explicitly stated.
+
+For each signal, return a JSON object with:
+- "headline": one-sentence signal description (not a news headline)
+- "source": publication name
+- "source_url": URL if available
+- "signal_type": one of investment, hiring, departure, deal, viewership, mandate_shift, partnership, restructuring, earnings, other
+- "entities": list of companies/people involved
+- "raw_facts": concrete verifiable facts
+- "forward_implications": list of logical implications
+- "thesis_relevance": how this relates to entertainment industry restructuring and creator ecosystem democratization (null if not relevant)
+- "confidence": high, medium, or low
+- "implication_weight": 1-10
+
+Filter out routine coverage (premieres, casting, release dates) unless they carry structural implications. Return a JSON array in ```json``` blocks."""
 
 
 def run_ingestion(run_date: date | None = None) -> list[dict]:
     """
-    Execute an ingestion run.
-
-    Searches entertainment industry sources for signals, extracts structured
-    signal objects, and saves them to persistent state.
-
-    Returns the list of extracted signals.
+    Execute an ingestion run using multiple focused search passes.
     """
     run_date = run_date or date.today()
     state = StateManager()
+    today = run_date.strftime("%B %d, %Y")
     print(f"[Ingestion] Starting run for {run_date.isoformat()}")
 
-    # Load current watchlist and thesis for context
+    # Load watchlist for targeted searches
     watchlist = state.load_watchlist()
-    thesis = state.load_thesis()
-    thesis_summary = thesis.get("core_argument") if thesis else None
+    watchlist_companies = watchlist.get("companies", [])
 
-    # Build the prompt
-    system_prompt = build_ingestion_prompt(watchlist, thesis_summary)
+    # Define search passes — each is a separate, small API call
+    search_passes = [
+        {
+            "name": "Trades scan",
+            "query": f"Search Deadline, Variety, and The Hollywood Reporter for the most important entertainment industry news from {today}. Focus on deals, investments, hiring, departures, restructuring, and strategic moves. Summarize each story with key facts.",
+        },
+        {
+            "name": "Creator/audio expansion",
+            "query": f"Search for recent news about podcast companies expanding into TV or film, creator economy developments, video podcasting moves by Netflix or other platforms, and audio-to-scripted adaptation deals. Include any news about Audiochuck, Wondery, Spotify, or iHeartMedia in entertainment. Today is {today}.",
+        },
+        {
+            "name": "Watchlist entities",
+            "query": f"Search for recent news about these specific companies and people: {', '.join(watchlist_companies[:8])}. Focus on strategic moves, investments, hiring, partnerships, or restructuring. Today is {today}.",
+        },
+        {
+            "name": "Industry data signals",
+            "query": f"Search for recent entertainment industry data: streaming viewership numbers, box office performance, studio earnings, show order rates, or hiring/layoff announcements at major studios and platforms. Today is {today}.",
+        },
+    ]
 
-    # The user message that kicks off the search
-    user_message = f"""Today is {run_date.strftime('%B %d, %Y')}.
+    # Execute each search pass
+    raw_results = []
+    for i, search_pass in enumerate(search_passes, 1):
+        name = search_pass["name"]
+        print(f"[Ingestion] Pass {i}/{len(search_passes)}: {name}")
 
-Run a comprehensive scan of entertainment industry sources for signals. Search for:
+        result = call_agent(
+            system_prompt=SYSTEM_SEARCH,
+            user_message=search_pass["query"],
+            tools=[WEB_SEARCH_TOOL],
+            model=config.model_daily,
+            max_iterations=5,
+        )
 
-1. Recent news from Deadline, Variety, THR, The Wrap, Puck about deals, investments,
-   hiring, departures, restructuring, and mandate shifts in the last 24-48 hours.
+        text = result["text"].strip()
+        if text:
+            raw_results.append(f"## {name}\n\n{text}")
+            print(f"[Ingestion]   ✓ Got results ({len(text)} chars)")
+        else:
+            print(f"[Ingestion]   ✗ No results")
 
-2. Any developments related to audio/podcast companies expanding into TV/film,
-   creator economy shifts, or platform strategy changes.
+    if not raw_results:
+        print("[Ingestion] No results from any search pass.")
+        return []
 
-3. Any discrepancies between what companies are saying publicly and what the data
-   (viewership, spending, hiring patterns) suggests.
+    # Structuring pass — no web search, just extraction
+    combined = "\n\n---\n\n".join(raw_results)
+    print(f"[Ingestion] Structuring {len(raw_results)} result sets into signals...")
 
-4. Anything touching the active watchlist entities.
-
-Search broadly. Extract every signal you find. Do not pre-filter for relevance —
-that is the Analysis Agent's job. Return your findings as the specified JSON format."""
-
-    # Run the agent with web search
-    print("[Ingestion] Running search agent...")
-    result = call_agent(
-        system_prompt=system_prompt,
-        user_message=user_message,
-        tools=[WEB_SEARCH_TOOL],
+    structure_result = call_agent(
+        system_prompt=SYSTEM_STRUCTURE,
+        user_message=f"Extract structured signals from the following research results gathered on {today}:\n\n{combined}",
         model=config.model_daily,
+        max_iterations=3,
     )
 
-    # Parse signals from agent output
-    signals = _parse_signals(result["text"])
+    # Parse signals
+    signals = _parse_signals(structure_result["text"])
     print(f"[Ingestion] Extracted {len(signals)} signals")
 
-    # Save to state
+    # Save
     if signals:
         path = state.save_signals(signals, run_date)
-        print(f"[Ingestion] Saved signals to {path}")
+        print(f"[Ingestion] Saved to {path}")
 
     return signals
 
 
 def _parse_signals(text: str) -> list[dict]:
     """Extract JSON signal array from agent output text."""
-    # Try to find JSON block in the text
     json_match = re.search(r"```json\s*([\s\S]*?)\s*```", text)
     if json_match:
         try:
@@ -92,7 +135,6 @@ def _parse_signals(text: str) -> list[dict]:
         except json.JSONDecodeError:
             pass
 
-    # Try to parse the whole text as JSON
     try:
         parsed = json.loads(text)
         if isinstance(parsed, list):

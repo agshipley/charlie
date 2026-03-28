@@ -19,6 +19,7 @@ import sys
 from datetime import date, datetime
 
 from core.config import config
+from core.render import render_brief, render_thesis_proposal
 from agents.ingestion import run_ingestion
 from agents.analysis import run_analysis
 from agents.brief import run_brief
@@ -61,8 +62,16 @@ def run_daily_pipeline(run_date: date | None = None):
     print("─" * 40)
     brief = run_brief(analysis, run_date)
 
+    # Step 4: Render readable output
+    print("\n" + "─" * 40)
+    print("STEP 4: RENDER")
+    print("─" * 40)
+    md_path = render_brief(brief, signals=signals, findings=analysis, run_date=run_date)
+    print(f"[Pipeline] Readable brief: {md_path}")
+
     print(f"\n{'='*60}")
     print(f"  Pipeline complete. {len(signals)} signals → {len(findings)} findings → Brief")
+    print(f"  Readable output: {md_path}")
     print(f"  Finished: {datetime.now().strftime('%H:%M:%S')}")
     print(f"{'='*60}\n")
 
@@ -79,8 +88,10 @@ def run_thesis_pipeline(days_back: int = 7):
     proposal = run_thesis(days_back)
 
     if proposal:
+        md_path = render_thesis_proposal(proposal)
         print(f"\n{'='*60}")
         print(f"  Thesis proposal generated. Awaiting review.")
+        print(f"  Readable output: {md_path}")
         print(f"{'='*60}\n")
     else:
         print(f"\n{'='*60}")
