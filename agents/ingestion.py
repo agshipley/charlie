@@ -120,12 +120,25 @@ def run_ingestion(run_date: date | None = None) -> list[dict]:
         print("[Ingestion] No results from any search pass.")
         return []
 
+    # Load feedback calibration
+    feedback_injection = ""
+    try:
+        from web import get_feedback_prompt_injection
+        feedback_injection = get_feedback_prompt_injection()
+        if feedback_injection:
+            print(f"[Ingestion] Injecting feedback calibration ({len(feedback_injection)} chars)")
+    except ImportError:
+        pass
+
     # Structuring pass — no web search, just extraction
     combined = "\n\n---\n\n".join(raw_results)
+    system_with_feedback = SYSTEM_STRUCTURE
+    if feedback_injection:
+        system_with_feedback += "\n\n" + feedback_injection
     print(f"[Ingestion] Structuring {len(raw_results)} result sets into signals...")
 
     structure_result = call_agent(
-        system_prompt=SYSTEM_STRUCTURE,
+        system_prompt=system_with_feedback,
         user_message=f"Extract structured signals from the following research results gathered on {today}:\n\n{combined}",
         model=config.model_daily,
         max_tokens=16000,
