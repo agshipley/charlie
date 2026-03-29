@@ -24,7 +24,9 @@ WEB_SEARCH_TOOL = {
     "max_uses": 3,
 }
 
-SYSTEM_SEARCH = """You are a news researcher. Search for the requested topic and return a concise summary of what you find. Include specific names, companies, numbers, dates, and URLs. Be factual, not interpretive."""
+SYSTEM_SEARCH = """You are a news researcher. Search for the requested topic and return a concise summary of what you find. Include specific names, companies, numbers, dates, and URLs. Be factual, not interpretive.
+
+CRITICAL: For each item you report, include the publication date. Prioritize stories published in the last 48 hours. If a story is older than one week, only include it if it contains genuinely new data or developments not previously reported."""
 
 SYSTEM_STRUCTURE = """You are a signal extractor for an entertainment industry intelligence system.
 
@@ -48,6 +50,10 @@ For each signal, return a JSON object with:
 - "thesis_relevance": how this relates to the thesis (null if not relevant)
 - "confidence": high, medium, or low
 - "implication_weight": 1-10
+- "event_date": the date the underlying event actually occurred (not the article date), as precise as possible
+- "is_new": true if the event occurred in the last 48 hours, false if older
+
+RECENCY RULES: Only include signals where the underlying event occurred in the last 48 hours OR where genuinely new data/developments have emerged about an older event. Do not repackage old news with new framing. If a story is a new article about an old event with no new information, exclude it.
 
 Filter out routine coverage unless it carries structural implications. Return a JSON array in ```json``` blocks."""
 
