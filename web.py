@@ -1,12 +1,5 @@
 """
 Charlie Web — serves briefs and collects feedback.
-
-Displays the daily brief with source links and a 1-10 relevance
-rating for each signal/finding. Feedback is stored and dynamically
-incorporated into agent prompts.
-
-Run locally: python web.py
-Deployed on Railway alongside the pipeline cron job.
 """
 
 import json
@@ -46,7 +39,6 @@ def add_rating(signal_headline: str, signal_type: str, rating: int, brief_date: 
         "brief_date": brief_date,
         "rated_at": datetime.now().isoformat(),
     })
-    # Update running summary of signal type preferences
     summary = feedback.get("summary", {})
     if signal_type not in summary:
         summary[signal_type] = {"total_ratings": 0, "sum": 0, "avg": 5.0}
@@ -58,63 +50,78 @@ def add_rating(signal_headline: str, signal_type: str, rating: int, brief_date: 
 
 
 def get_feedback_prompt_injection() -> str:
-    """Generate a prompt fragment from accumulated feedback for agent tuning."""
     feedback = load_feedback()
     summary = feedback.get("summary", {})
     if not summary:
         return ""
-
     lines = ["## Feedback-Based Calibration",
-             "Based on user ratings (1=irrelevant, 10=gold), these signal types have the following average relevance scores:"]
+             "Based on user ratings (1=irrelevant, 10=gold):"]
     for sig_type, data in sorted(summary.items(), key=lambda x: x[1]["avg"], reverse=True):
-        n = data["total_ratings"]
-        avg = data["avg"]
-        if n >= 2:  # Only include types with enough data
-            lines.append(f"- {sig_type}: {avg}/10 (n={n})")
-
-    # Include recent specific low-rated signals as "avoid" examples
+        if data["total_ratings"] >= 2:
+            lines.append(f"- {sig_type}: {data['avg']}/10 (n={data['total_ratings']})")
     recent_low = [r for r in feedback.get("ratings", [])[-50:] if r["rating"] <= 2]
     if recent_low:
-        lines.append("\nRecently rated as irrelevant (avoid similar):")
+        lines.append("\nAvoid similar to:")
         for r in recent_low[-5:]:
-            lines.append(f"- \"{r['headline']}\" (rated {r['rating']}/10)")
-
-    # Include recent high-rated signals as "more like this" examples
+            lines.append(f'- "{r["headline"]}" ({r["rating"]}/10)')
     recent_high = [r for r in feedback.get("ratings", [])[-50:] if r["rating"] >= 8]
     if recent_high:
-        lines.append("\nRecently rated as highly relevant (find more like these):")
+        lines.append("\nMore like:")
         for r in recent_high[-5:]:
-            lines.append(f"- \"{r['headline']}\" (rated {r['rating']}/10)")
-
+            lines.append(f'- "{r["headline"]}" ({r["rating"]}/10)')
     return "\n".join(lines)
 
 
-# ── HTML Template ────────────────────────────────────────────────────────
+# ── Shared Styles & Nav ──────────────────────────────────────────────────
 
-TEMPLATE = """<!DOCTYPE html>
+SHARED_STYLES = """
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Georgia', serif; background: #fafafa; color: #1a1a1a; line-height: 1.6; }
+  .container { max-width: 680px; margin: 0 auto; padding: 40px 24px; }
+  .header { border-bottom: 3px solid #1a1a1a; padding-bottom: 16px; margin-bottom: 12px; }
+  .header h1 { font-size: 28px; letter-spacing: -0.5px; }
+  .header .sub { font-size: 14px; color: #666; margin-top: 4px; }
+  .nav { display: flex; gap: 16px; padding: 12px 0 24px 0; border-bottom: 1px solid #e0e0e0; margin-bottom: 28px; font-size: 13px; }
+  .nav a { color: #3D5A80; text-decoration: none; }
+  .nav a:hover { text-decoration: underline; }
+  .nav a.active { color: #1a1a1a; font-weight: bold; text-decoration: none; }
+  .empty { font-size: 14px; color: #999; font-style: italic; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999; }
+  a { color: #3D5A80; }
+  .btn { display: inline-block; padding: 12px 24px; background: #3D5A80; color: white; border: none;
+         border-radius: 4px; font-size: 15px; cursor: pointer; text-decoration: none; font-family: Georgia, serif; }
+  .btn:hover { background: #2B3A4A; }
+"""
+
+def nav_html(active="brief"):
+    return f"""<div class="nav">
+  <a href="/" class="{'active' if active == 'brief' else ''}">Latest Brief</a>
+  <a href="/archive" class="{'active' if active == 'archive' else ''}">Archive</a>
+  <a href="/run" class="{'active' if active == 'run' else ''}">Run Brief</a>
+</div>"""
+
+
+# ── Brief Template ───────────────────────────────────────────────────────
+
+BRIEF_TEMPLATE = """<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Charlie — The Brief</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Georgia', serif; background: #fafafa; color: #1a1a1a; line-height: 1.6; }
-  .container { max-width: 680px; margin: 0 auto; padding: 40px 24px; }
-  .header { border-bottom: 3px solid #1a1a1a; padding-bottom: 16px; margin-bottom: 32px; }
-  .header h1 { font-size: 28px; letter-spacing: -0.5px; }
-  .header .date { font-size: 14px; color: #666; margin-top: 4px; }
-  .nav { margin-bottom: 24px; font-size: 13px; color: #999; }
-  .nav a { color: #3D5A80; text-decoration: none; margin-right: 12px; }
-  .nav a:hover { text-decoration: underline; }
-  .nav a.active { color: #1a1a1a; font-weight: bold; }
+  """ + SHARED_STYLES + """
+  .date-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; font-size: 13px; }
+  .date-nav a { color: #3D5A80; text-decoration: none; }
+  .date-nav a:hover { text-decoration: underline; }
+  .date-nav .current { font-weight: bold; color: #1a1a1a; }
+  .date-nav .placeholder { visibility: hidden; }
 
   .tier { margin-bottom: 36px; }
   .tier-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #999; margin-bottom: 8px; }
   .tier h2 { font-size: 18px; line-height: 1.4; margin-bottom: 12px; }
   .tier .body { font-size: 15px; color: #333; margin-bottom: 12px; }
   .tier .question { font-size: 14px; color: #666; font-style: italic; padding-left: 16px; border-left: 2px solid #ddd; }
-  .empty { font-size: 14px; color: #999; font-style: italic; }
   .divider { border: none; border-top: 1px solid #e0e0e0; margin: 32px 0; }
 
   .signal-log { margin-top: 40px; border-top: 2px solid #e0e0e0; padding-top: 24px; }
@@ -141,12 +148,10 @@ TEMPLATE = """<!DOCTYPE html>
   .rating-btn.mid.selected { background: #7f8c8d; border-color: #7f8c8d; }
   .rating-btn.high.selected { background: #27ae60; border-color: #27ae60; }
 
-  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999; }
-
   @media print {
     body { background: white; }
     .container { padding: 20px 0; }
-    .rating, .nav { display: none; }
+    .rating, .nav, .date-nav { display: none; }
   }
 </style>
 </head>
@@ -154,13 +159,26 @@ TEMPLATE = """<!DOCTYPE html>
 <div class="container">
   <div class="header">
     <h1>The Brief</h1>
-    <div class="date">{{ date_display }}</div>
+    <div class="sub">{{ date_display }}</div>
   </div>
 
-  <div class="nav">
-    <a href="/archive">Archive</a>
-    <a href="/run">Run Brief</a>
+  {{ nav | safe }}
+
+  {% if prev_date or next_date %}
+  <div class="date-nav">
+    {% if prev_date %}
+    <a href="/brief/{{ prev_date }}">← {{ prev_date }}</a>
+    {% else %}
+    <span class="placeholder">←</span>
+    {% endif %}
+    <span class="current">{{ current_date }}</span>
+    {% if next_date %}
+    <a href="/brief/{{ next_date }}">{{ next_date }} →</a>
+    {% else %}
+    <span class="placeholder">→</span>
+    {% endif %}
   </div>
+  {% endif %}
 
   {% if brief %}
   {% set tiers = [
@@ -225,12 +243,10 @@ TEMPLATE = """<!DOCTYPE html>
 
   {% else %}
   <p class="empty">No brief available for this date.</p>
-  <p style="margin-top: 16px;"><a href="/run" style="color: #3D5A80;">Run The Brief now →</a></p>
+  <p style="margin-top: 16px;"><a href="/run">Run The Brief now →</a></p>
   {% endif %}
 
-  <div class="footer">
-    Generated by Charlie
-  </div>
+  <div class="footer">Charlie — Entertainment Industry Intelligence</div>
 </div>
 
 <script>
@@ -238,12 +254,8 @@ function rate(btn, rating) {
   const container = btn.closest('.rating');
   const headline = container.dataset.headline;
   const sigType = container.dataset.type;
-
-  // Visual feedback
   container.querySelectorAll('.rating-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
-
-  // Send to server
   fetch('/api/feedback', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -260,57 +272,7 @@ function rate(btn, rating) {
 </html>"""
 
 
-# ── Routes ───────────────────────────────────────────────────────────────
-
-@app.route("/")
-def index():
-    """Redirect to today's brief or most recent available."""
-    briefs_dir = config.briefs_dir
-    available = sorted([f.stem for f in briefs_dir.glob("*.json")], reverse=True)
-    if available:
-        return redirect(url_for("show_brief", brief_date=available[0]))
-    return render_template_string(TEMPLATE, brief=None, signals=[], date_display="No briefs yet",
-                                 available_dates=[], current_date="")
-
-
-@app.route("/archive")
-def archive():
-    """List all past briefs."""
-    briefs_dir = config.briefs_dir
-    available = sorted([f.stem for f in briefs_dir.glob("*.json")], reverse=True)
-
-    # Load headline summaries for each brief
-    briefs_summary = []
-    for brief_date in available:
-        brief_path = briefs_dir / f"{brief_date}.json"
-        entry = {"date": brief_date, "tier_1": None, "tier_2": None, "tier_3": None, "signal_count": 0}
-        try:
-            d = date.fromisoformat(brief_date)
-            entry["date_display"] = d.strftime("%A, %B %d, %Y")
-        except ValueError:
-            entry["date_display"] = brief_date
-
-        try:
-            with open(brief_path) as f:
-                data = json.load(f)
-                brief = data.get("brief", data)
-                if brief.get("tier_1"):
-                    entry["tier_1"] = brief["tier_1"].get("headline", "")
-                if brief.get("tier_2"):
-                    entry["tier_2"] = brief["tier_2"].get("headline", "")
-                if brief.get("tier_3"):
-                    entry["tier_3"] = brief["tier_3"].get("headline", "")
-        except (json.JSONDecodeError, KeyError):
-            pass
-
-        # Count signals
-        signals = state.load_signals(date.fromisoformat(brief_date)) if brief_date else []
-        entry["signal_count"] = len(signals)
-
-        briefs_summary.append(entry)
-
-    return render_template_string(ARCHIVE_TEMPLATE, briefs=briefs_summary)
-
+# ── Archive Template ─────────────────────────────────────────────────────
 
 ARCHIVE_TEMPLATE = """<!DOCTYPE html>
 <html>
@@ -319,15 +281,7 @@ ARCHIVE_TEMPLATE = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Charlie — Archive</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Georgia', serif; background: #fafafa; color: #1a1a1a; line-height: 1.6; }
-  .container { max-width: 680px; margin: 0 auto; padding: 40px 24px; }
-  .header { border-bottom: 3px solid #1a1a1a; padding-bottom: 16px; margin-bottom: 32px; }
-  .header h1 { font-size: 28px; letter-spacing: -0.5px; }
-  .header .sub { font-size: 14px; color: #666; margin-top: 4px; }
-  .nav { margin-bottom: 24px; font-size: 13px; }
-  .nav a { color: #3D5A80; text-decoration: none; margin-right: 12px; }
-  .nav a:hover { text-decoration: underline; }
+  """ + SHARED_STYLES + """
   .brief-card { margin-bottom: 24px; padding: 20px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
   .brief-card:hover { border-color: #3D5A80; }
   .brief-card a { text-decoration: none; color: inherit; display: block; }
@@ -337,21 +291,16 @@ ARCHIVE_TEMPLATE = """<!DOCTYPE html>
   .brief-tiers .tier-item { margin-bottom: 4px; }
   .brief-tiers .tier-label { color: #999; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
   .brief-meta { font-size: 12px; color: #999; margin-top: 8px; }
-  .empty { font-size: 14px; color: #999; font-style: italic; margin-top: 40px; }
-  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999; }
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <h1>The Brief — Archive</h1>
-    <div class="sub">All past briefs</div>
+    <h1>The Brief</h1>
+    <div class="sub">Archive</div>
   </div>
 
-  <div class="nav">
-    <a href="/">Latest Brief</a>
-    <a href="/run">Run Brief</a>
-  </div>
+  {{ nav | safe }}
 
   {% if briefs %}
   {% for b in briefs %}
@@ -376,7 +325,7 @@ ARCHIVE_TEMPLATE = """<!DOCTYPE html>
   </div>
   {% endfor %}
   {% else %}
-  <p class="empty">No briefs have been generated yet. <a href="/run" style="color: #3D5A80;">Run the first one →</a></p>
+  <p class="empty">No briefs have been generated yet. <a href="/run">Run the first one →</a></p>
   {% endif %}
 
   <div class="footer">Charlie — Entertainment Industry Intelligence</div>
@@ -385,11 +334,141 @@ ARCHIVE_TEMPLATE = """<!DOCTYPE html>
 </html>"""
 
 
-@app.route("/brief/<brief_date>")
-def show_brief(brief_date):
-    """Display a specific day's brief."""
+# ── Run Template ─────────────────────────────────────────────────────────
+
+RUN_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charlie — Run Pipeline</title>
+<style>
+  """ + SHARED_STYLES + """
+  .run-box { margin-top: 24px; padding: 24px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
+  .run-box p { font-size: 15px; color: #333; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>The Brief</h1>
+    <div class="sub">Run Pipeline</div>
+  </div>
+
+  {{ nav | safe }}
+
+  <div class="run-box">
+    <p>Run the full daily pipeline: ingestion, analysis, brief generation. Takes ~10 minutes.</p>
+    <form method="POST">
+      <button type="submit" class="btn">Run Now</button>
+    </form>
+  </div>
+
+  <div class="footer">Charlie — Entertainment Industry Intelligence</div>
+</div>
+</body>
+</html>"""
+
+RUNNING_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charlie — Running</title>
+<meta http-equiv="refresh" content="600;url=/">
+<style>
+  """ + SHARED_STYLES + """
+  .status-box { margin-top: 24px; padding: 24px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
+  .status-box p { font-size: 15px; color: #333; margin-bottom: 12px; }
+  .status-box .hint { font-size: 13px; color: #999; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>The Brief</h1>
+    <div class="sub">Pipeline Running</div>
+  </div>
+
+  {{ nav | safe }}
+
+  <div class="status-box">
+    <p>The daily pipeline is running in the background.</p>
+    <p class="hint">This page will redirect to The Brief in 10 minutes, or <a href="/">check now</a>.</p>
+  </div>
+
+  <div class="footer">Charlie — Entertainment Industry Intelligence</div>
+</div>
+</body>
+</html>"""
+
+
+# ── Routes ───────────────────────────────────────────────────────────────
+
+@app.route("/")
+def index():
     briefs_dir = config.briefs_dir
     available = sorted([f.stem for f in briefs_dir.glob("*.json")], reverse=True)
+    if available:
+        return redirect(url_for("show_brief", brief_date=available[0]))
+    return render_template_string(BRIEF_TEMPLATE, brief=None, signals=[],
+                                 date_display="No briefs yet", nav=nav_html("brief"),
+                                 current_date="", prev_date=None, next_date=None)
+
+
+@app.route("/archive")
+def archive():
+    briefs_dir = config.briefs_dir
+    available = sorted([f.stem for f in briefs_dir.glob("*.json")], reverse=True)
+
+    briefs_summary = []
+    for brief_date in available:
+        brief_path = briefs_dir / f"{brief_date}.json"
+        entry = {"date": brief_date, "tier_1": None, "tier_2": None, "tier_3": None, "signal_count": 0}
+        try:
+            d = date.fromisoformat(brief_date)
+            entry["date_display"] = d.strftime("%A, %B %d, %Y")
+        except ValueError:
+            entry["date_display"] = brief_date
+
+        try:
+            with open(brief_path) as f:
+                data = json.load(f)
+                brief = data.get("brief", data)
+                if brief.get("tier_1"):
+                    entry["tier_1"] = brief["tier_1"].get("headline", "")
+                if brief.get("tier_2"):
+                    entry["tier_2"] = brief["tier_2"].get("headline", "")
+                if brief.get("tier_3"):
+                    entry["tier_3"] = brief["tier_3"].get("headline", "")
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+        try:
+            signals = state.load_signals(date.fromisoformat(brief_date))
+            entry["signal_count"] = len(signals)
+        except ValueError:
+            pass
+
+        briefs_summary.append(entry)
+
+    return render_template_string(ARCHIVE_TEMPLATE, briefs=briefs_summary, nav=nav_html("archive"))
+
+
+@app.route("/brief/<brief_date>")
+def show_brief(brief_date):
+    briefs_dir = config.briefs_dir
+    available = sorted([f.stem for f in briefs_dir.glob("*.json")])
+
+    # Find prev/next dates
+    prev_date = None
+    next_date = None
+    if brief_date in available:
+        idx = available.index(brief_date)
+        if idx > 0:
+            prev_date = available[idx - 1]
+        if idx < len(available) - 1:
+            next_date = available[idx + 1]
 
     # Load brief
     brief_path = briefs_dir / f"{brief_date}.json"
@@ -400,7 +479,11 @@ def show_brief(brief_date):
             brief = data.get("brief", data)
 
     # Load signals
-    signals = state.load_signals(date.fromisoformat(brief_date))
+    signals = []
+    try:
+        signals = state.load_signals(date.fromisoformat(brief_date))
+    except ValueError:
+        pass
 
     # Format date
     try:
@@ -409,16 +492,17 @@ def show_brief(brief_date):
     except ValueError:
         date_display = brief_date
 
-    return render_template_string(TEMPLATE,
+    return render_template_string(BRIEF_TEMPLATE,
                                  brief=brief, signals=signals,
                                  date_display=date_display,
-                                 available_dates=available[:14],
-                                 current_date=brief_date)
+                                 nav=nav_html("brief"),
+                                 current_date=brief_date,
+                                 prev_date=prev_date,
+                                 next_date=next_date)
 
 
 @app.route("/api/feedback", methods=["POST"])
 def submit_feedback():
-    """Receive a signal rating."""
     data = request.json
     add_rating(
         signal_headline=data.get("headline", ""),
@@ -431,35 +515,15 @@ def submit_feedback():
 
 @app.route("/api/feedback/summary")
 def feedback_summary():
-    """Return the current feedback summary."""
     feedback = load_feedback()
     return jsonify(feedback.get("summary", {}))
 
 
 @app.route("/run", methods=["GET", "POST"])
 def run_pipeline():
-    """Trigger the daily pipeline manually."""
     if request.method == "GET":
-        return render_template_string("""<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Charlie — Run Pipeline</title>
-<style>
-  body { font-family: Georgia, serif; background: #fafafa; color: #1a1a1a; max-width: 640px; margin: 40px auto; padding: 0 24px; }
-  h1 { font-size: 24px; margin-bottom: 16px; }
-  .btn { display: inline-block; padding: 12px 24px; background: #3D5A80; color: white; border: none;
-         border-radius: 4px; font-size: 15px; cursor: pointer; text-decoration: none; font-family: Georgia, serif; }
-  .btn:hover { background: #2B3A4A; }
-  .status { margin-top: 20px; font-size: 14px; color: #666; }
-  a { color: #3D5A80; }
-</style></head><body>
-  <h1>Run The Brief</h1>
-  <p>This will run the full daily pipeline: ingestion, analysis, brief generation. Takes ~10 minutes.</p>
-  <form method="POST" style="margin-top:20px;">
-    <button type="submit" class="btn">Run Now</button>
-  </form>
-  <p class="status"><a href="/">← Back to The Brief</a></p>
-</body></html>""")
+        return render_template_string(RUN_TEMPLATE, nav=nav_html("run"))
 
-    # POST — run the pipeline in a background thread
     import threading
     def _run():
         try:
@@ -471,50 +535,34 @@ def run_pipeline():
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
 
-    return render_template_string("""<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Charlie — Running</title>
-<meta http-equiv="refresh" content="600;url=/">
-<style>
-  body { font-family: Georgia, serif; background: #fafafa; color: #1a1a1a; max-width: 640px; margin: 40px auto; padding: 0 24px; }
-  h1 { font-size: 24px; margin-bottom: 16px; }
-  .status { font-size: 14px; color: #666; margin-top: 12px; }
-  a { color: #3D5A80; }
-</style></head><body>
-  <h1>Pipeline Running</h1>
-  <p>The daily pipeline is running in the background. This takes ~10 minutes.</p>
-  <p class="status">This page will redirect to The Brief in 10 minutes, or <a href="/">check now</a>.</p>
-</body></html>""")
+    return render_template_string(RUNNING_TEMPLATE, nav=nav_html("run"))
 
-# ── Entry Point ──────────────────────────────────────────────────────────
+
+# ── Scheduler ────────────────────────────────────────────────────────────
 
 def start_scheduler():
-    """Start the built-in scheduler for daily pipeline and weekly thesis runs."""
     import threading
     import time as _time
     from datetime import datetime as _dt, timedelta
 
     def _scheduler_loop():
         brief_hour = int(os.environ.get("BRIEF_HOUR", "6"))
-        thesis_day = int(os.environ.get("THESIS_DAY", "0"))  # 0=Monday
+        thesis_day = int(os.environ.get("THESIS_DAY", "0"))
         tz = os.environ.get("BRIEF_TIMEZONE", "America/Los_Angeles")
 
-        print(f"[Scheduler] Started. Brief runs daily at {brief_hour}:00 {tz}. Thesis runs Mondays at {brief_hour + 1}:00.")
+        print(f"[Scheduler] Started. Brief daily at {brief_hour}:00 {tz}. Thesis Mondays at {brief_hour + 1}:00.")
 
         last_brief_date = None
         last_thesis_date = None
 
         while True:
             try:
-                # Use UTC offset approximation for Pacific (-7 PDT, -8 PST)
-                # For a personal tool this is fine
                 utc_now = _dt.utcnow()
-                pacific_offset = timedelta(hours=-7)  # PDT
+                pacific_offset = timedelta(hours=-7)
                 local_now = utc_now + pacific_offset
-
                 today = local_now.date()
                 current_hour = local_now.hour
 
-                # Daily brief
                 if current_hour >= brief_hour and last_brief_date != today:
                     print(f"[Scheduler] Triggering daily brief for {today}")
                     last_brief_date = today
@@ -524,9 +572,8 @@ def start_scheduler():
                     except Exception as e:
                         print(f"[Scheduler] Brief error: {e}")
 
-                # Weekly thesis (Monday)
                 if local_now.weekday() == thesis_day and current_hour >= brief_hour + 1 and last_thesis_date != today:
-                    print(f"[Scheduler] Triggering weekly thesis synthesis for {today}")
+                    print(f"[Scheduler] Triggering weekly thesis for {today}")
                     last_thesis_date = today
                     try:
                         from orchestrator import run_thesis_pipeline
@@ -537,11 +584,13 @@ def start_scheduler():
             except Exception as e:
                 print(f"[Scheduler] Loop error: {e}")
 
-            _time.sleep(300)  # Check every 5 minutes
+            _time.sleep(300)
 
     thread = threading.Thread(target=_scheduler_loop, daemon=True)
     thread.start()
 
+
+# ── Entry Point ──────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
