@@ -1,0 +1,158 @@
+{
+  "ratings": [
+    {
+      "headline": "Project Hail Mary opens to $80.5M domestic debut, setting Amazon MGM and Lord & Miller records while validating book-to-screen adaptation as box office engine",
+      "signal_type": "viewership",
+      "rating": 6,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:01:32.188859"
+    },
+    {
+      "headline": "Audiochuck hires former Sony Pictures Television Nonfiction president Matt Shanfield to build in-house screen content division from podcast IP",
+      "signal_type": "hiring",
+      "rating": 10,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:01:39.785776"
+    },
+    {
+      "headline": "Audiochuck hires former Sony Pictures Television Nonfiction president Matt Shanfield to build in-house screen content division from podcast IP",
+      "signal_type": "hiring",
+      "rating": 9,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:01:41.290920"
+    },
+    {
+      "headline": "Netflix\u2013Spotify video podcast deal launches with 16 Ringer/Spotify Studio shows streaming simultaneously on both platforms",
+      "signal_type": "partnership",
+      "rating": 9,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:01:46.460294"
+    },
+    {
+      "headline": "Sony Pictures Television puts Jeopardy! episode on YouTube with creator contestants including Rebecca Black and Brennan Lee Mulligan",
+      "signal_type": "deal",
+      "rating": 8,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:01:56.616654"
+    },
+    {
+      "headline": "Starz layoffs hit 7% of workforce despite positive February 2026 earnings, signaling structural cost pressure independent of performance",
+      "signal_type": "restructuring",
+      "rating": 7,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:02:09.825574"
+    },
+    {
+      "headline": "Sony Pictures Television nonfiction leadership exits \u2014 Holzman and Saidman out, Katherine Pope absorbs division in consolidation move",
+      "signal_type": "restructuring",
+      "rating": 7,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:02:12.764079"
+    },
+    {
+      "headline": "Video game adaptation pipeline reaches historic density with six theatrical releases in 2026 and major future deals including Elden Ring (A24/Garland) and Zelda",
+      "signal_type": "ip_saturation",
+      "rating": 8,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:02:20.660025"
+    },
+    {
+      "headline": "Star Trek: Starfleet Academy to end after Season 2 despite critical reception, as Paramount+ viewer numbers fail to support renewal",
+      "signal_type": "mandate_shift",
+      "rating": 4,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:02:24.279881"
+    },
+    {
+      "headline": "Streaming hits all-time high of 47.5% TV share in December 2025 while Gen Z daily TV viewing sits at only 36% vs. 73% for Boomers",
+      "signal_type": "viewership",
+      "rating": 8,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:02:30.631212"
+    },
+    {
+      "headline": "Paramount\u2013Warner Bros. Discovery $111B merger advances with Paramount chief arguing combined entity serves workers, as Netflix walks away from WBD deal",
+      "signal_type": "deal",
+      "rating": 5,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:02:42.369211"
+    },
+    {
+      "headline": "Matthew Ball documents gaming industry paradox: consumer spending at all-time high but U.S. player base below pre-pandemic levels, with China consuming 38% of global growth",
+      "signal_type": "other",
+      "rating": 8,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:02:49.668678"
+    },
+    {
+      "headline": "Golden Globes introduces first-ever podcast category, awarded to Amy Poehler's Good Hang, signaling formal institutional recognition of podcasting as peer entertainment medium",
+      "signal_type": "other",
+      "rating": 6,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:03:00.062002"
+    },
+    {
+      "headline": "Spotify podcast layoffs hit The Ringer and Spotify Studios \u2014 15 employees, 3% of podcast headcount \u2014 as Netflix partnership simultaneously expands Ringer's distribution",
+      "signal_type": "restructuring",
+      "rating": 7,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:03:07.304870"
+    },
+    {
+      "headline": "Podcast IP ownership disputes escalate as Audiochuck sued for $20M by Anatomy of Murder hosts over ad revenue sharing under former SiriusXM deal",
+      "signal_type": "other",
+      "rating": 8,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:03:14.832439"
+    },
+    {
+      "headline": "Netflix produces original video podcasts including Pete Davidson Show with SAG-AFTRA contract, establishing new labor classification precedent for creator-format content",
+      "signal_type": "deal",
+      "rating": 8,
+      "brief_date": "2026-03-29",
+      "rated_at": "2026-03-29T12:03:24.090002"
+    }
+  ],
+  "summary": {
+    "viewership": {
+      "total_ratings": 2,
+      "sum": 14,
+      "avg": 7.0
+    },
+    "hiring": {
+      "total_ratings": 2,
+      "sum": 19,
+      "avg": 9.5
+    },
+    "partnership": {
+      "total_ratings": 1,
+      "sum": 9,
+      "avg": 9.0
+    },
+    "deal": {
+      "total_ratings": 3,
+      "sum": 21,
+      "avg": 7.0
+    },
+    "restructuring": {
+      "total_ratings": 3,
+      "sum": 21,
+      "avg": 7.0
+    },
+    "ip_saturation": {
+      "total_ratings": 1,
+      "sum": 8,
+      "avg": 8.0
+    },
+    "mandate_shift": {
+      "total_ratings": 1,
+      "sum": 4,
+      "avg": 4.0
+    },
+    "other": {
+      "total_ratings": 3,
+      "sum": 22,
+      "avg": 7.3
+    }
+  }
+}
