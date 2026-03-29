@@ -95,9 +95,11 @@ SHARED_STYLES = """
 
 def nav_html(active="brief"):
     return f"""<div class="nav">
-  <a href="/" class="{'active' if active == 'brief' else ''}">Latest Brief</a>
+  <a href="/" class="{'active' if active == 'brief' else ''}">The Brief</a>
+  <a href="/thesis" class="{'active' if active == 'thesis' else ''}">Living Thesis</a>
+  <a href="/book" class="{'active' if active == 'book' else ''}">Book Project</a>
   <a href="/archive" class="{'active' if active == 'archive' else ''}">Archive</a>
-  <a href="/run" class="{'active' if active == 'run' else ''}">Run Brief</a>
+  <a href="/run" class="{'active' if active == 'run' else ''}">Run</a>
 </div>"""
 
 
@@ -499,6 +501,258 @@ def show_brief(brief_date):
                                  current_date=brief_date,
                                  prev_date=prev_date,
                                  next_date=next_date)
+
+
+# ── Thesis Routes ────────────────────────────────────────────────────────
+
+THESIS_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charlie — The Living Thesis</title>
+<style>
+  """ + SHARED_STYLES + """
+  .thesis-meta { font-size: 12px; color: #999; margin-bottom: 28px; }
+  .force { margin-bottom: 36px; padding: 20px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
+  .force-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #999; margin-bottom: 8px; }
+  .force h2 { font-size: 18px; margin-bottom: 12px; color: #1a1a1a; }
+  .force .summary { font-size: 15px; color: #333; margin-bottom: 16px; line-height: 1.6; }
+  .evidence-list { margin: 0; padding: 0; list-style: none; }
+  .evidence-list li { font-size: 13px; color: #555; padding: 6px 0 6px 16px; border-left: 2px solid #e0e0e0; margin-bottom: 6px; }
+  .evidence-list li.strong { border-left-color: #27ae60; }
+  .gaps { margin-top: 16px; }
+  .gaps h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #c0392b; margin-bottom: 8px; }
+  .gaps li { font-size: 13px; color: #888; padding: 4px 0; }
+
+  .claims { margin-top: 36px; border-top: 2px solid #e0e0e0; padding-top: 24px; }
+  .claims h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 16px; }
+  .claim { margin-bottom: 16px; padding: 16px; background: #f5f5f5; border-radius: 6px; }
+  .claim .claim-text { font-size: 15px; color: #1a1a1a; margin-bottom: 6px; }
+  .claim .claim-meta { font-size: 12px; color: #999; }
+  .confidence-high { border-left: 3px solid #27ae60; }
+  .confidence-medium-high { border-left: 3px solid #f39c12; }
+  .confidence-medium { border-left: 3px solid #e67e22; }
+  .confidence-low { border-left: 3px solid #c0392b; }
+
+  .ip-landscape { margin-top: 36px; border-top: 2px solid #e0e0e0; padding-top: 24px; }
+  .ip-landscape h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 16px; }
+  .ip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ip-item { padding: 12px; background: #f5f5f5; border-radius: 4px; font-size: 13px; }
+  .ip-item .ip-name { font-weight: bold; margin-bottom: 4px; }
+  .ip-item .ip-status { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .ip-item .ip-notes { color: #666; font-size: 12px; }
+  .status-saturating { color: #c0392b; }
+  .status-fatigued { color: #e67e22; }
+  .status-accelerating { color: #27ae60; }
+  .status-early { color: #3D5A80; }
+  .status-emerging { color: #3D5A80; }
+  .status-nascent { color: #999; }
+  .status-most_mature { color: #27ae60; }
+  .status-stable { color: #7f8c8d; }
+  .status-heavily_mined { color: #e67e22; }
+  .status-evolved { color: #f39c12; }
+  .status-uncertain { color: #999; }
+
+  @media (max-width: 500px) { .ip-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>The Living Thesis</h1>
+    <div class="sub">Entertainment Industry Restructuring</div>
+  </div>
+
+  {{ nav | safe }}
+
+  {% if thesis %}
+  <div class="thesis-meta">Version {{ thesis.version | default(1) }} · Updated {{ thesis.updated_at | default('unknown') }}</div>
+
+  <p style="font-size: 15px; color: #333; margin-bottom: 32px; line-height: 1.7;">{{ thesis.core_argument }}</p>
+
+  {% for force_key, force_label in [('supply_exhaustion', 'Supply Exhaustion'), ('demand_migration', 'Demand Migration'), ('discovery_bridge', 'The Discovery Bridge')] %}
+  {% set force = thesis.forces.get(force_key, {}) %}
+  <div class="force">
+    <div class="force-label">Force {{ loop.index }}</div>
+    <h2>{{ force_label }}</h2>
+    <div class="summary">{{ force.get('summary', '') }}</div>
+    {% if force.get('evidence') %}
+    <ul class="evidence-list">
+      {% for e in force.evidence %}
+      <li class="strong">{{ e }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if force.get('gaps') %}
+    <div class="gaps">
+      <h4>Research Gaps</h4>
+      <ul class="evidence-list">
+        {% for g in force.gaps %}
+        <li>{{ g }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    <div class="claim-meta" style="margin-top: 12px;">Confidence: {{ force.get('confidence', '?') }}</div>
+  </div>
+  {% endfor %}
+
+  {% if thesis.get('claims') %}
+  <div class="claims">
+    <h3>Core Claims</h3>
+    {% for c in thesis.claims %}
+    <div class="claim confidence-{{ c.get('confidence', 'medium') | replace(' ', '-') }}">
+      <div class="claim-text">{{ c.claim }}</div>
+      <div class="claim-meta">Confidence: {{ c.confidence }} · Force: {{ c.get('force', 'all') }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if thesis.get('ip_landscape') %}
+  <div class="ip-landscape">
+    <h3>IP Landscape — Traditional</h3>
+    <div class="ip-grid">
+      {% for key, val in thesis.ip_landscape.get('traditional', {}).items() %}
+      <div class="ip-item">
+        <div class="ip-name">{{ key | replace('_', ' ') | title }}</div>
+        <div class="ip-status status-{{ val.status }}">{{ val.status | replace('_', ' ') }}</div>
+        <div class="ip-notes">{{ val.notes }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <h3 style="margin-top: 24px;">IP Landscape — Creator-Driven</h3>
+    <div class="ip-grid">
+      {% for key, val in thesis.ip_landscape.get('creator_driven', {}).items() %}
+      <div class="ip-item">
+        <div class="ip-name">{{ key | replace('_', ' ') | title }}</div>
+        <div class="ip-status status-{{ val.status }}">{{ val.status | replace('_', ' ') }}</div>
+        <div class="ip-notes">{{ val.notes }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <p class="empty">No thesis document has been seeded yet.</p>
+  {% endif %}
+
+  <div class="footer">Charlie — Entertainment Industry Intelligence</div>
+</div>
+</body>
+</html>"""
+
+
+BOOK_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charlie — Book Project</title>
+<style>
+  """ + SHARED_STYLES + """
+  .book-status { font-size: 14px; color: #333; margin-bottom: 28px; padding: 16px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
+  .book-status strong { color: #1a1a1a; }
+
+  .chapter { margin-bottom: 20px; padding: 20px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
+  .chapter:hover { border-color: #3D5A80; }
+  .chapter-num { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #999; margin-bottom: 6px; }
+  .chapter h2 { font-size: 17px; margin-bottom: 8px; color: #1a1a1a; }
+  .chapter .focus { font-size: 14px; color: #555; line-height: 1.5; margin-bottom: 10px; }
+  .chapter .ch-status { font-size: 12px; padding: 3px 10px; border-radius: 12px; display: inline-block; }
+  .ch-complete { background: #d5f5e3; color: #27ae60; }
+  .ch-in-progress { background: #fef9e7; color: #f39c12; }
+  .ch-not-started { background: #f2f3f4; color: #999; }
+
+  .exec-section { margin-top: 36px; border-top: 2px solid #e0e0e0; padding-top: 24px; }
+  .exec-section h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 16px; }
+  .exec { margin-bottom: 12px; padding: 12px 16px; background: #f5f5f5; border-radius: 4px; font-size: 13px; }
+  .exec .exec-name { font-weight: bold; margin-bottom: 2px; }
+  .exec .exec-detail { color: #666; font-size: 12px; }
+
+  .questions { margin-top: 36px; border-top: 2px solid #e0e0e0; padding-top: 24px; }
+  .questions h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 16px; }
+  .question-item { font-size: 14px; color: #333; padding: 8px 0 8px 16px; border-left: 2px solid #3D5A80; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Book Project</h1>
+    <div class="sub">{{ thesis.book_project.get('working_title', 'Working Title TBD') if thesis and thesis.get('book_project') else 'TBD' }}</div>
+  </div>
+
+  {{ nav | safe }}
+
+  {% if thesis and thesis.get('book_project') %}
+  {% set book = thesis.book_project %}
+
+  <div class="book-status">
+    <strong>Status:</strong> {{ book.get('status', 'unknown') | replace('_', ' ') | title }}
+  </div>
+
+  {% if book.get('chapter_outline') %}
+  {% for ch in book.chapter_outline %}
+  <div class="chapter">
+    <div class="chapter-num">Chapter {{ ch.chapter }}</div>
+    <h2>{{ ch.title }}</h2>
+    <div class="focus">{{ ch.focus }}</div>
+    {% if ch.status == 'lit_review_complete' %}
+    <span class="ch-status ch-complete">Lit Review Complete</span>
+    {% elif ch.status == 'research_in_progress' %}
+    <span class="ch-status ch-in-progress">Research In Progress</span>
+    {% else %}
+    <span class="ch-status ch-not-started">Not Started</span>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if thesis.get('development_function') %}
+  <div class="exec-section">
+    <h3>Tracked Development Executives</h3>
+    {% for exec in thesis.development_function.get('tracked_executives', []) %}
+    <div class="exec">
+      <div class="exec-name">{{ exec.name }} — {{ exec.title }}</div>
+      <div class="exec-detail">{{ exec.company }}{% if exec.get('background') %} · Previously: {{ exec.background }}{% endif %}</div>
+      {% if exec.get('track_record') %}
+      <div class="exec-detail">Track record: {{ exec.track_record }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="questions">
+    <h3>Key Research Questions</h3>
+    {% for q in thesis.development_function.get('key_questions', []) %}
+    <div class="question-item">{{ q }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <p class="empty">No book project data available.</p>
+  {% endif %}
+
+  <div class="footer">Charlie — Entertainment Industry Intelligence</div>
+</div>
+</body>
+</html>"""
+
+
+@app.route("/thesis")
+def show_thesis():
+    thesis = state.load_thesis()
+    return render_template_string(THESIS_TEMPLATE, thesis=thesis, nav=nav_html("thesis"))
+
+
+@app.route("/book")
+def show_book():
+    thesis = state.load_thesis()
+    return render_template_string(BOOK_TEMPLATE, thesis=thesis, nav=nav_html("book"))
 
 
 @app.route("/api/feedback", methods=["POST"])
