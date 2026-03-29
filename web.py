@@ -157,9 +157,8 @@ TEMPLATE = """<!DOCTYPE html>
   </div>
 
   <div class="nav">
-    {% for d in available_dates %}
-    <a href="/brief/{{ d }}" class="{{ 'active' if d == current_date else '' }}">{{ d }}</a>
-    {% endfor %}
+    <a href="/archive">Archive</a>
+    <a href="/run">Run Brief</a>
   </div>
 
   {% if brief %}
@@ -271,6 +270,118 @@ def index():
         return redirect(url_for("show_brief", brief_date=available[0]))
     return render_template_string(TEMPLATE, brief=None, signals=[], date_display="No briefs yet",
                                  available_dates=[], current_date="")
+
+
+@app.route("/archive")
+def archive():
+    """List all past briefs."""
+    briefs_dir = config.briefs_dir
+    available = sorted([f.stem for f in briefs_dir.glob("*.json")], reverse=True)
+
+    # Load headline summaries for each brief
+    briefs_summary = []
+    for brief_date in available:
+        brief_path = briefs_dir / f"{brief_date}.json"
+        entry = {"date": brief_date, "tier_1": None, "tier_2": None, "tier_3": None, "signal_count": 0}
+        try:
+            d = date.fromisoformat(brief_date)
+            entry["date_display"] = d.strftime("%A, %B %d, %Y")
+        except ValueError:
+            entry["date_display"] = brief_date
+
+        try:
+            with open(brief_path) as f:
+                data = json.load(f)
+                brief = data.get("brief", data)
+                if brief.get("tier_1"):
+                    entry["tier_1"] = brief["tier_1"].get("headline", "")
+                if brief.get("tier_2"):
+                    entry["tier_2"] = brief["tier_2"].get("headline", "")
+                if brief.get("tier_3"):
+                    entry["tier_3"] = brief["tier_3"].get("headline", "")
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+        # Count signals
+        signals = state.load_signals(date.fromisoformat(brief_date)) if brief_date else []
+        entry["signal_count"] = len(signals)
+
+        briefs_summary.append(entry)
+
+    return render_template_string(ARCHIVE_TEMPLATE, briefs=briefs_summary)
+
+
+ARCHIVE_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charlie — Archive</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Georgia', serif; background: #fafafa; color: #1a1a1a; line-height: 1.6; }
+  .container { max-width: 680px; margin: 0 auto; padding: 40px 24px; }
+  .header { border-bottom: 3px solid #1a1a1a; padding-bottom: 16px; margin-bottom: 32px; }
+  .header h1 { font-size: 28px; letter-spacing: -0.5px; }
+  .header .sub { font-size: 14px; color: #666; margin-top: 4px; }
+  .nav { margin-bottom: 24px; font-size: 13px; }
+  .nav a { color: #3D5A80; text-decoration: none; margin-right: 12px; }
+  .nav a:hover { text-decoration: underline; }
+  .brief-card { margin-bottom: 24px; padding: 20px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
+  .brief-card:hover { border-color: #3D5A80; }
+  .brief-card a { text-decoration: none; color: inherit; display: block; }
+  .brief-date { font-size: 13px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .brief-signal { font-size: 16px; font-weight: bold; color: #1a1a1a; margin-bottom: 6px; line-height: 1.3; }
+  .brief-tiers { font-size: 13px; color: #666; }
+  .brief-tiers .tier-item { margin-bottom: 4px; }
+  .brief-tiers .tier-label { color: #999; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  .brief-meta { font-size: 12px; color: #999; margin-top: 8px; }
+  .empty { font-size: 14px; color: #999; font-style: italic; margin-top: 40px; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>The Brief — Archive</h1>
+    <div class="sub">All past briefs</div>
+  </div>
+
+  <div class="nav">
+    <a href="/">Latest Brief</a>
+    <a href="/run">Run Brief</a>
+  </div>
+
+  {% if briefs %}
+  {% for b in briefs %}
+  <div class="brief-card">
+    <a href="/brief/{{ b.date }}">
+      <div class="brief-date">{{ b.date_display }}</div>
+      {% if b.tier_1 %}
+      <div class="brief-signal">{{ b.tier_1 }}</div>
+      {% else %}
+      <div class="brief-signal" style="color: #999;">No signal generated</div>
+      {% endif %}
+      <div class="brief-tiers">
+        {% if b.tier_2 %}
+        <div class="tier-item"><span class="tier-label">Bullshit Flag:</span> {{ b.tier_2 }}</div>
+        {% endif %}
+        {% if b.tier_3 %}
+        <div class="tier-item"><span class="tier-label">Your World:</span> {{ b.tier_3 }}</div>
+        {% endif %}
+      </div>
+      <div class="brief-meta">{{ b.signal_count }} signals ingested</div>
+    </a>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="empty">No briefs have been generated yet. <a href="/run" style="color: #3D5A80;">Run the first one →</a></p>
+  {% endif %}
+
+  <div class="footer">Charlie — Entertainment Industry Intelligence</div>
+</div>
+</body>
+</html>"""
 
 
 @app.route("/brief/<brief_date>")
