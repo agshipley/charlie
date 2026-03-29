@@ -1,151 +1,165 @@
-import anthropic
-import time
+"""
+Ingestion Agent — monitors entertainment industry sources and extracts signals.
+
+Runs daily. Makes multiple small, focused API calls with web search, each scoped
+to a specific search domain. Then a final structuring call (no web search) combines
+the raw results into structured signal objects.
+
+This architecture avoids the timeout problem caused by accumulating too many
+search results in a single API call's context window.
+"""
+
 import json
-from datetime import datetime
-from .config import config
+import re
+from datetime import date
+
+from core.client import call_agent
+from core.config import config
+from core.state import StateManager
 
 
-def get_client():
-    """Return an Anthropic client instance with extended timeout."""
-    return anthropic.Anthropic(
-        api_key=config.api_key,
-        timeout=300.0,  # 5 minute timeout per request
-    )
+WEB_SEARCH_TOOL = {
+    "type": "web_search_20250305",
+    "name": "web_search",
+    "max_uses": 3,
+}
+
+SYSTEM_SEARCH = """You are a news researcher. Search for the requested topic and return a concise summary of what you find. Include specific names, companies, numbers, dates, and URLs. Be factual, not interpretive."""
+
+SYSTEM_STRUCTURE = """You are a signal extractor for an entertainment industry intelligence system.
+
+You will receive raw search results from multiple research passes. Extract structured signals — events with forward implications beyond what is explicitly stated.
+
+## Thesis Framework
+Tag each signal with which force it relates to:
+1. SUPPLY EXHAUSTION: Traditional IP pipelines (books, comics, games, songs, theater, journalism, life rights, toys) showing saturation.
+2. DEMAND MIGRATION: Audiences pulled to creator platforms by algorithmic discovery. Streamers lack equivalent targeting.
+3. DISCOVERY BRIDGE: Creator-branded content as the mechanism for bringing audiences back to scripted.
+
+For each signal, return a JSON object with:
+- "headline": one-sentence signal description
+- "source": publication name
+- "source_url": URL if available
+- "signal_type": one of investment, hiring, departure, deal, viewership, mandate_shift, partnership, restructuring, earnings, ip_saturation, audience_migration, exec_move, other
+- "entities": list of companies/people involved
+- "raw_facts": concrete verifiable facts
+- "forward_implications": list of logical implications
+- "thesis_force": supply_exhaustion, demand_migration, discovery_bridge, or none
+- "thesis_relevance": how this relates to the thesis (null if not relevant)
+- "confidence": high, medium, or low
+- "implication_weight": 1-10
+
+Filter out routine coverage unless it carries structural implications. Return a JSON array in ```json``` blocks."""
 
 
-def call_agent(
-    system_prompt: str,
-    user_message: str,
-    tools: list | None = None,
-    tool_handlers: dict | None = None,
-    model: str | None = None,
-    max_tokens: int = 8096,
-    max_iterations: int = 20,
-) -> dict:
+def run_ingestion(run_date: date | None = None) -> list[dict]:
     """
-    Run a full agent loop: send a message, handle tool use, repeat until done.
-    Prints real-time progress so you always know what's happening.
+    Execute an ingestion run using multiple focused search passes.
     """
-    client = get_client()
-    model = model or config.model_daily
-    tools = tools or []
-    tool_handlers = tool_handlers or {}
-    messages = [{"role": "user", "content": user_message}]
-    collected_text = []
-    collected_tool_results = []
+    run_date = run_date or date.today()
+    state = StateManager()
+    today = run_date.strftime("%B %d, %Y")
+    print(f"[Ingestion] Starting run for {run_date.isoformat()}")
 
-    for iteration in range(max_iterations):
-        _log(f"API call {iteration + 1}/{max_iterations} → {model}")
-        start = time.time()
+    # Load watchlist for targeted searches
+    watchlist = state.load_watchlist()
+    watchlist_companies = watchlist.get("companies", [])
 
-        response = _call_with_retry(
-            client, model, system_prompt, tools, messages, max_tokens
+    # Define search passes — each is a separate, small API call
+    search_passes = [
+        {
+            "name": "Trades scan",
+            "query": f"Search Deadline, Variety, and The Hollywood Reporter for the most important entertainment industry news from {today}. Focus on deals, investments, hiring, departures, restructuring, and strategic moves. Summarize each story with key facts.",
+        },
+        {
+            "name": "Creator/audio expansion",
+            "query": f"Search for recent news about podcast companies expanding into TV or film, creator economy developments, video podcasting moves by Netflix or other platforms, and audio-to-scripted adaptation deals. Include any news about Audiochuck, Wondery, Spotify, or iHeartMedia in entertainment. Today is {today}.",
+        },
+        {
+            "name": "Watchlist entities",
+            "query": f"Search for recent news about these specific companies and people: {', '.join(watchlist_companies[:8])}. Focus on strategic moves, investments, hiring, partnerships, or restructuring. Today is {today}.",
+        },
+        {
+            "name": "IP pipeline and audience data",
+            "query": f"Search for recent entertainment industry data: streaming viewership numbers, box office performance, video game adaptation deals, book-to-screen option activity, comic book adaptation performance, music catalog licensing for film/TV, audience migration between platforms, ad-supported streaming tier growth. Today is {today}.",
+        },
+        {
+            "name": "Structural analysis",
+            "query": f"Search for recent analysis from Matthew Ball, Richard Rushfield Ankler, Matthew Belloni Puck, or Parrot Analytics about entertainment industry restructuring, streaming economics, creator economy, or content strategy shifts. Today is {today}.",
+        },
+    ]
+
+    # Execute each search pass
+    raw_results = []
+    for i, search_pass in enumerate(search_passes, 1):
+        name = search_pass["name"]
+        print(f"[Ingestion] Pass {i}/{len(search_passes)}: {name}")
+
+        result = call_agent(
+            system_prompt=SYSTEM_SEARCH,
+            user_message=search_pass["query"],
+            tools=[WEB_SEARCH_TOOL],
+            model=config.model_daily,
+            max_iterations=5,
         )
 
-        elapsed = time.time() - start
-        _log(f"Response in {elapsed:.1f}s — stop_reason: {response.stop_reason}")
-
-        # Add assistant response to history
-        messages.append({"role": "assistant", "content": response.content})
-
-        if response.stop_reason == "end_turn":
-            for block in response.content:
-                if hasattr(block, "text"):
-                    collected_text.append(block.text)
-            _log("Agent finished.")
-            break
-
-        elif response.stop_reason == "max_tokens":
-            # Output was truncated — collect what we have and ask to continue
-            for block in response.content:
-                if hasattr(block, "text"):
-                    collected_text.append(block.text)
-            _log("Hit max_tokens — requesting continuation...")
-            messages.append({"role": "user", "content": "Your response was truncated. Continue exactly where you left off. Do not restart or repeat — just continue the output."})
-
-        elif response.stop_reason == "tool_use":
-            tool_results = []
-            for block in response.content:
-                if block.type == "tool_use":
-                    _log(f"  Tool: {block.name}")
-                    handler = tool_handlers.get(block.name)
-                    if handler:
-                        result = handler(block.input)
-                        collected_tool_results.append({
-                            "tool": block.name,
-                            "input": block.input,
-                            "result": result,
-                        })
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": result if isinstance(result, str) else json.dumps(result),
-                        })
-                    elif block.name == "web_search":
-                        # Web search is handled by the API itself
-                        pass
-                    else:
-                        tool_results.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": f"Error: No handler registered for tool '{block.name}'",
-                        })
-
-                if hasattr(block, "text") and block.text:
-                    # Print a preview of what the agent is thinking
-                    preview = block.text[:120].replace("\n", " ")
-                    _log(f"  Agent: {preview}...")
-                    collected_text.append(block.text)
-
-            if tool_results:
-                messages.append({"role": "user", "content": tool_results})
-
+        text = result["text"].strip()
+        if text:
+            raw_results.append(f"## {name}\n\n{text}")
+            print(f"[Ingestion]   ✓ Got results ({len(text)} chars)")
         else:
-            _log(f"Unexpected stop_reason: {response.stop_reason}")
-            for block in response.content:
-                if hasattr(block, "text"):
-                    collected_text.append(block.text)
-            break
+            print(f"[Ingestion]   ✗ No results")
 
-    return {
-        "text": "\n".join(collected_text),
-        "messages": messages,
-        "tool_results": collected_tool_results,
-    }
+    if not raw_results:
+        print("[Ingestion] No results from any search pass.")
+        return []
+
+    # Structuring pass — no web search, just extraction
+    combined = "\n\n---\n\n".join(raw_results)
+    print(f"[Ingestion] Structuring {len(raw_results)} result sets into signals...")
+
+    structure_result = call_agent(
+        system_prompt=SYSTEM_STRUCTURE,
+        user_message=f"Extract structured signals from the following research results gathered on {today}:\n\n{combined}",
+        model=config.model_daily,
+        max_tokens=16000,
+        max_iterations=5,
+    )
+
+    # Parse signals
+    signals = _parse_signals(structure_result["text"])
+    print(f"[Ingestion] Extracted {len(signals)} signals")
+
+    # Save
+    if signals:
+        path = state.save_signals(signals, run_date)
+        print(f"[Ingestion] Saved to {path}")
+
+    return signals
 
 
-def _call_with_retry(client, model, system, tools, messages, max_tokens, max_retries=5):
-    """Call the API with retry logic for rate limits, connection errors, and server errors."""
-    for attempt in range(max_retries):
+def _parse_signals(text: str) -> list[dict]:
+    """Extract JSON signal array from agent output text."""
+    json_match = re.search(r"```json\s*([\s\S]*?)\s*```", text)
+    if json_match:
         try:
-            kwargs = {
-                "model": model,
-                "max_tokens": max_tokens,
-                "system": system,
-                "messages": messages,
-            }
-            if tools:
-                kwargs["tools"] = tools
-            return client.messages.create(**kwargs)
-        except anthropic.RateLimitError:
-            wait_time = 30 * (attempt + 1)
-            _log(f"  Rate limit hit, retrying in {wait_time}s ({attempt + 1}/{max_retries})")
-            time.sleep(wait_time)
-        except anthropic.APIConnectionError as e:
-            wait_time = 10 * (attempt + 1)
-            _log(f"  Connection error: {e}. Retrying in {wait_time}s ({attempt + 1}/{max_retries})")
-            time.sleep(wait_time)
-        except anthropic.APIStatusError as e:
-            if e.status_code >= 500:
-                wait_time = 15 * (attempt + 1)
-                _log(f"  Server error ({e.status_code}), retrying in {wait_time}s ({attempt + 1}/{max_retries})")
-                time.sleep(wait_time)
-            else:
-                raise
-    raise Exception(f"Max retries ({max_retries}) exceeded")
+            return json.loads(json_match.group(1))
+        except json.JSONDecodeError:
+            pass
+
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, list):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    print("[Ingestion] WARNING: Could not parse signals from agent output")
+    return []
 
 
-def _log(msg: str):
-    """Print a timestamped log message."""
-    ts = datetime.now().strftime("%H:%M:%S")
-    print(f"  [{ts}] {msg}")
+if __name__ == "__main__":
+    signals = run_ingestion()
+    print(f"\nExtracted {len(signals)} signals:")
+    for s in signals:
+        print(f"  - [{s.get('signal_type', '?')}] {s.get('headline', 'No headline')}")

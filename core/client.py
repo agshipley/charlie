@@ -55,6 +55,14 @@ def call_agent(
             _log("Agent finished.")
             break
 
+        elif response.stop_reason == "max_tokens":
+            # Output was truncated — collect what we have and ask to continue
+            for block in response.content:
+                if hasattr(block, "text"):
+                    collected_text.append(block.text)
+            _log("Hit max_tokens — requesting continuation...")
+            messages.append({"role": "user", "content": "Your response was truncated. Continue exactly where you left off. Do not restart or repeat — just continue the output."})
+
         elif response.stop_reason == "tool_use":
             tool_results = []
             for block in response.content:
