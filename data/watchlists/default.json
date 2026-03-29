@@ -13,12 +13,30 @@
     "Crooked Media",
     "Pushkin Industries",
     "Gimlet",
-    "Serial Productions"
+    "Serial Productions",
+    "QCode",
+    "Meet Cute",
+    "Dude Perfect",
+    "Night Media",
+    "Unwell Network",
+    "MrBeast / Beast Industries",
+    "Fullscreen / Otter Media",
+    "Rooster Teeth",
+    "The Ringer"
   ],
   "people": [
     "Ashley Flowers",
     "Matt Shanfield",
-    "Peter Chernin"
+    "Peter Chernin",
+    "Aaron Hart",
+    "Jordan Moblo",
+    "Marshall Lewy",
+    "Alex Cooper",
+    "MrBeast / Jimmy Donaldson",
+    "Ted Sarandos",
+    "Matthew Ball",
+    "Richard Rushfield",
+    "Matthew Belloni"
   ],
   "patterns": [
     "Audio/podcast companies announcing TV or film divisions",
@@ -30,7 +48,26 @@
     "Podcast IP adaptation deals",
     "Video podcasting expansion by platforms",
     "MCN or creator economy company restructuring",
-    "Newsletter or Substack content being optioned for development"
+    "Newsletter or Substack content optioned for development",
+    "Video game IP adaptation deals or pipeline activity",
+    "Song/music catalog licensing for jukebox narrative adaptations",
+    "Board game or toy IP development deals (post-Barbie)",
+    "Book option price inflation or declining conversion to production",
+    "Comic book adaptation fatigue evidence (box office decline, cancellations)",
+    "Streaming platform recommendation algorithm changes",
+    "Audience migration data between platforms (especially demo-specific)",
+    "Ad-supported tier growth and content volume requirements",
+    "Creator-branded content performing differently than traditionally marketed content",
+    "Development executive hires or departures at creator-native companies",
+    "Traditional studio creating creator-focused development roles",
+    "Parrot Analytics or Nielsen data on cross-platform demand shifts",
+    "Creator compensation and revenue-sharing model changes",
+    "Platform exclusivity deals for podcasts or creator content"
   ],
-  "updated_at": "2026-03-27"
+  "analysts_to_track": [
+    "Matthew Ball — streaming economics, value chain analysis",
+    "Richard Rushfield / The Ankler — studio model structural critique",
+    "Matthew Belloni / Puck — Hollywood deal intelligence and power dynamics"
+  ],
+  "updated_at": "2026-03-29"
 }
