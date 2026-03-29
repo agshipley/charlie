@@ -10,6 +10,7 @@ Deployed on Railway alongside the pipeline cron job.
 """
 
 import json
+import os
 from datetime import date, datetime
 from pathlib import Path
 from flask import Flask, render_template_string, request, jsonify, redirect, url_for
@@ -486,7 +487,63 @@ def run_pipeline():
 
 # ── Entry Point ──────────────────────────────────────────────────────────
 
+def start_scheduler():
+    """Start the built-in scheduler for daily pipeline and weekly thesis runs."""
+    import threading
+    import time as _time
+    from datetime import datetime as _dt, timedelta
+
+    def _scheduler_loop():
+        brief_hour = int(os.environ.get("BRIEF_HOUR", "6"))
+        thesis_day = int(os.environ.get("THESIS_DAY", "0"))  # 0=Monday
+        tz = os.environ.get("BRIEF_TIMEZONE", "America/Los_Angeles")
+
+        print(f"[Scheduler] Started. Brief runs daily at {brief_hour}:00 {tz}. Thesis runs Mondays at {brief_hour + 1}:00.")
+
+        last_brief_date = None
+        last_thesis_date = None
+
+        while True:
+            try:
+                # Use UTC offset approximation for Pacific (-7 PDT, -8 PST)
+                # For a personal tool this is fine
+                utc_now = _dt.utcnow()
+                pacific_offset = timedelta(hours=-7)  # PDT
+                local_now = utc_now + pacific_offset
+
+                today = local_now.date()
+                current_hour = local_now.hour
+
+                # Daily brief
+                if current_hour >= brief_hour and last_brief_date != today:
+                    print(f"[Scheduler] Triggering daily brief for {today}")
+                    last_brief_date = today
+                    try:
+                        from orchestrator import run_daily_pipeline
+                        run_daily_pipeline()
+                    except Exception as e:
+                        print(f"[Scheduler] Brief error: {e}")
+
+                # Weekly thesis (Monday)
+                if local_now.weekday() == thesis_day and current_hour >= brief_hour + 1 and last_thesis_date != today:
+                    print(f"[Scheduler] Triggering weekly thesis synthesis for {today}")
+                    last_thesis_date = today
+                    try:
+                        from orchestrator import run_thesis_pipeline
+                        run_thesis_pipeline()
+                    except Exception as e:
+                        print(f"[Scheduler] Thesis error: {e}")
+
+            except Exception as e:
+                print(f"[Scheduler] Loop error: {e}")
+
+            _time.sleep(300)  # Check every 5 minutes
+
+    thread = threading.Thread(target=_scheduler_loop, daemon=True)
+    thread.start()
+
+
 if __name__ == "__main__":
-    import os
     port = int(os.environ.get("PORT", 5001))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    start_scheduler()
+    app.run(host="0.0.0.0", port=port, debug=False)
