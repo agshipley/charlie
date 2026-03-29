@@ -225,6 +225,7 @@ TEMPLATE = """<!DOCTYPE html>
 
   {% else %}
   <p class="empty">No brief available for this date.</p>
+  <p style="margin-top: 16px;"><a href="/run" style="color: #3D5A80;">Run The Brief now →</a></p>
   {% endif %}
 
   <div class="footer">
@@ -322,6 +323,55 @@ def feedback_summary():
     feedback = load_feedback()
     return jsonify(feedback.get("summary", {}))
 
+
+@app.route("/run", methods=["GET", "POST"])
+def run_pipeline():
+    """Trigger the daily pipeline manually."""
+    if request.method == "GET":
+        return render_template_string("""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Charlie — Run Pipeline</title>
+<style>
+  body { font-family: Georgia, serif; background: #fafafa; color: #1a1a1a; max-width: 640px; margin: 40px auto; padding: 0 24px; }
+  h1 { font-size: 24px; margin-bottom: 16px; }
+  .btn { display: inline-block; padding: 12px 24px; background: #3D5A80; color: white; border: none;
+         border-radius: 4px; font-size: 15px; cursor: pointer; text-decoration: none; font-family: Georgia, serif; }
+  .btn:hover { background: #2B3A4A; }
+  .status { margin-top: 20px; font-size: 14px; color: #666; }
+  a { color: #3D5A80; }
+</style></head><body>
+  <h1>Run The Brief</h1>
+  <p>This will run the full daily pipeline: ingestion, analysis, brief generation. Takes ~10 minutes.</p>
+  <form method="POST" style="margin-top:20px;">
+    <button type="submit" class="btn">Run Now</button>
+  </form>
+  <p class="status"><a href="/">← Back to The Brief</a></p>
+</body></html>""")
+
+    # POST — run the pipeline in a background thread
+    import threading
+    def _run():
+        try:
+            from orchestrator import run_daily_pipeline
+            run_daily_pipeline()
+        except Exception as e:
+            print(f"[Web] Pipeline error: {e}")
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+
+    return render_template_string("""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Charlie — Running</title>
+<meta http-equiv="refresh" content="600;url=/">
+<style>
+  body { font-family: Georgia, serif; background: #fafafa; color: #1a1a1a; max-width: 640px; margin: 40px auto; padding: 0 24px; }
+  h1 { font-size: 24px; margin-bottom: 16px; }
+  .status { font-size: 14px; color: #666; margin-top: 12px; }
+  a { color: #3D5A80; }
+</style></head><body>
+  <h1>Pipeline Running</h1>
+  <p>The daily pipeline is running in the background. This takes ~10 minutes.</p>
+  <p class="status">This page will redirect to The Brief in 10 minutes, or <a href="/">check now</a>.</p>
+</body></html>""")
 
 # ── Entry Point ──────────────────────────────────────────────────────────
 
