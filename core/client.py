@@ -108,7 +108,7 @@ def call_agent(
             break
 
     return {
-        "text": "\n".join(collected_text),
+        "text": "".join(collected_text),
         "messages": messages,
         "tool_results": collected_tool_results,
     }

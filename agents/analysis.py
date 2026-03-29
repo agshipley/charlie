@@ -63,6 +63,7 @@ Produce your analysis in the specified JSON format."""
         system_prompt=system_prompt,
         user_message=user_message,
         model=config.model_deep,
+        max_tokens=16000,
     )
 
     # Parse findings
@@ -73,7 +74,8 @@ Produce your analysis in the specified JSON format."""
 
 
 def _parse_analysis(text: str) -> dict:
-    """Extract analysis JSON from agent output."""
+    """Extract analysis JSON from agent output, handling stitched continuations."""
+    # Try standard json block
     json_match = re.search(r"```json\s*([\s\S]*?)\s*```", text)
     if json_match:
         try:
@@ -81,12 +83,38 @@ def _parse_analysis(text: str) -> dict:
         except json.JSONDecodeError:
             pass
 
+    # Handle stitched output: strip markdown fences and try to find valid JSON
+    cleaned = text
+    # Remove all markdown json fences
+    cleaned = re.sub(r"```json\s*", "", cleaned)
+    cleaned = re.sub(r"```\s*", "", cleaned)
+    cleaned = cleaned.strip()
+
+    # Try to find a JSON object in the cleaned text
+    # Look for the outermost { ... } 
+    brace_start = cleaned.find("{")
+    if brace_start >= 0:
+        # Find matching closing brace by counting
+        depth = 0
+        for i in range(brace_start, len(cleaned)):
+            if cleaned[i] == "{":
+                depth += 1
+            elif cleaned[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(cleaned[brace_start:i+1])
+                    except json.JSONDecodeError:
+                        break
+
+    # Last resort: try the whole cleaned text
     try:
-        return json.loads(text)
+        return json.loads(cleaned)
     except json.JSONDecodeError:
         pass
 
     print("[Analysis] WARNING: Could not parse analysis from agent output")
+    print(f"[Analysis] Output preview: {text[:300]}...")
     return {"findings": [], "meta": {"parse_error": True}}
 
 
