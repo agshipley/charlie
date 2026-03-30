@@ -846,7 +846,27 @@ def start_scheduler():
 
 # ── Entry Point ──────────────────────────────────────────────────────────
 
+def seed_data():
+    """Copy seed files into the data volume if they don't already exist.
+    On Railway, the volume at /app/data overlays the git repo's data/ directory,
+    so we keep seed files in seed/ and copy them on first boot."""
+    import shutil
+    seed_dir = Path(__file__).parent / "seed"
+    if not seed_dir.exists():
+        return
+
+    for src in seed_dir.rglob("*"):
+        if src.is_file():
+            rel = src.relative_to(seed_dir)
+            dest = config.data_dir / rel
+            if not dest.exists():
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dest)
+                print(f"[Seed] Copied {rel} to data volume")
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
+    seed_data()
     start_scheduler()
     app.run(host="0.0.0.0", port=port, debug=False)

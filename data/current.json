@@ -1,127 +1,124 @@
 {
-  "core_argument": "The entertainment industry is undergoing a structural reorganization driven by three converging forces: the exhaustion of traditional IP pipelines, the migration of audiences to creator-driven platforms via superior algorithmic discovery, and the emergence of creator-branded content as the only reliable bridge for bringing those audiences back to scripted entertainment. This restructuring is not optional — it is being forced by the simultaneous depletion of traditional IP sources and the migration of audiences to platforms with fundamentally different content economics.",
-  "updated_at": "2026-03-29T12:00:00",
+  "core_argument": "Hollywood's century-old system for finding and developing intellectual property is breaking down. The traditional pipeline — books, comics, spec scripts, licensing — was built for an era of scarcity, when a handful of broadcast slots and theatrical windows could sustain premium pricing on every title. Streaming destroyed that scarcity, demanding volume the old pipeline cannot produce. Simultaneously, the audiences studios need have migrated to platforms with fundamentally better content discovery — YouTube, TikTok, podcasting — pulled not by superior content but by superior matching. The only proven mechanism for reaching those audiences in scripted formats is through the creator brands they already trust. This is not a trend. It is a structural reorganization of how entertainment finds its way to people, and the executives and companies who understand it hold an asymmetric advantage.",
+  "updated_at": "2026-03-29T18:00:00",
   "version": 1,
   "forces": {
     "supply_exhaustion": {
-      "summary": "Traditional IP pipelines — books, comics, video games, songs, theater, journalism, life rights, board games — are showing signs of saturation. Option prices have inflated, hit rates are declining, and the volume of viable material is insufficient to meet streaming-era demand. The traditional development model was designed for scarcity (limited broadcast slots); the streaming environment demands volume that these pipelines cannot sustain.",
+      "summary": "The traditional IP pipeline was designed to feed a scarcity-based system — limited broadcast slots, limited theatrical windows, limited cable channels. Each property could command premium development investment because the odds of reaching an audience were structurally high. Streaming inverted this. Platforms need hundreds of titles per year, not dozens. The pipeline built for scarcity cannot produce at volume, and the economics show it: option prices are inflating as studios compete for a shrinking pool of viable properties, conversion rates from option to production are declining, and entire categories show signs of creative exhaustion.",
       "evidence": [
-        "Book option prices have inflated dramatically as studios compete for shrinking pool of properties with built-in audiences",
-        "Comic book adaptation fatigue evidenced by declining box office returns for non-tentpole superhero properties",
-        "Video game adaptation pipeline reaching historic density (6 theatrical releases in 2026) suggesting rapid mining of the category",
-        "Netflix walked away from $82.7B WBD acquisition (entire DC, Harry Potter, HBO library), stock rose 8% — market pricing legacy IP as harvest, not growth",
-        "Paramount-WBD merger 85% dependent on linear cable profits, confirming traditional pipeline is a harvest play"
+        "Netflix walked away from acquiring Warner Bros. Discovery's full library — DC, Harry Potter, HBO catalog — for $82.7B. Its stock rose on the news. The market priced legacy IP as a harvest asset, not a growth asset.",
+        "Paramount-WBD $111B merger is 85% dependent on linear cable profits, confirming that the companies holding the deepest traditional IP libraries are consolidating defensively, not investing in growth.",
+        "Video game adaptation pipeline reached historic density in 2026 with six theatrical releases, suggesting studios are rapidly mining a category that was barely tapped five years ago — a leading indicator of exhaustion in more established categories.",
+        "Sony Pictures Television folded its nonfiction division under scripted leadership (Katherine Pope), issued targeted buyouts, and saw senior departures (Holzman, Saidman) — structural contraction in a traditional development function.",
+        "The romantasy publishing genre hit $600M in sales in 2024 but Hollywood has failed to convert a single major adaptation despite multiple options on A Court of Thorns and Roses and similar properties — suggesting a widening gap between publishing success and screen conversion."
       ],
       "confidence": "high",
       "gaps": [
-        "Systematic data on book option price inflation over time",
-        "Conversion rate from option to production across IP categories",
-        "Song/jukebox model pipeline depth — how many catalog properties are genuinely adaptable?",
-        "Board game/toy IP pipeline beyond Barbie — replicable or one-off?"
+        "No systematic longitudinal data on book option price inflation — this claim is widely asserted in trade press but not quantified",
+        "Conversion rate from option to production across IP categories over time — would prove or disprove declining pipeline efficiency",
+        "Song/jukebox model remains early (Piña Colada in development, Bohemian Rhapsody and Rocketman the only major successes) — unclear whether this is a deep well or a shallow novelty",
+        "Board game/toy IP after Barbie — no second proof point exists yet"
       ]
     },
     "demand_migration": {
-      "summary": "Audiences have migrated from scripted content to creator-driven platforms, pulled not primarily by content preference but by radically superior algorithmic discovery infrastructure. YouTube and TikTok match audiences to content individually and continuously; streamers use blunt-instrument category browsing. The migration is a discovery infrastructure problem, not a content quality problem.",
+      "summary": "The conventional explanation for audience loss is that younger viewers prefer short-form, unscripted, creator-driven content over scripted television. This is wrong, or at least incomplete. The deeper cause is infrastructural: YouTube, TikTok, and Spotify have built recommendation engines that match individuals to content with a precision that no streaming platform can replicate. Audiences aren't choosing creator content over scripted — they're being captured by platforms that are radically better at finding them something to watch. The migration is a discovery problem, not a content preference problem. This distinction matters because it changes the solution: the answer isn't better scripted content, it's better discovery — and creator brands are currently the only mechanism that provides it.",
       "evidence": [
-        "YouTube accounts for 11.1% of all TV streaming, surpassing Netflix at 8.5%",
-        "Streaming hit all-time high of 47.5% TV share in December 2025",
-        "Gen Z daily TV viewing at 36% vs. 73% for Boomers",
-        "YouTube has 1 billion monthly active podcast viewers, 700M hours of living room podcast viewing per month",
-        "72% of podcast listeners prefer shows with video (Cumulus Media study)",
-        "US advertising spend on creators projected at $37B in 2025, up from $13.9B four years prior — 4x rate of broader media industry growth"
+        "YouTube commands 11.1% of all TV streaming in the United States, surpassing Netflix at 8.5% — making it the single most-watched streaming platform in the country.",
+        "Streaming hit an all-time high of 47.5% of total TV viewing in December 2025, but Gen Z daily TV viewing sits at only 36% versus 73% for Boomers — the youngest demo has structurally different consumption patterns.",
+        "YouTube has over 1 billion monthly active podcast viewers and logged 700 million hours of living room podcast viewing in October 2025 alone.",
+        "72% of podcast listeners say they prefer shows with video (Cumulus Media), driving the convergence of audio and visual formats on platforms with strong recommendation engines.",
+        "U.S. advertising spending on creators projected at $37 billion in 2025, up from $13.9 billion four years earlier — a growth rate 4x the broader media industry, reflecting where attention has actually migrated."
       ],
       "confidence": "high",
       "gaps": [
-        "Direct measurement of audience migration patterns by demo",
-        "Evidence on whether creator-branded shows have different retention curves",
-        "Whether platforms are using creator audience data to improve recommendation engines",
-        "Measurement of the algorithmic discovery gap between YouTube/TikTok and streaming platforms"
+        "No direct measurement of the 'algorithmic discovery gap' between YouTube/TikTok recommendation engines and streamer browse interfaces — this is the central causal claim and it's supported by inference, not measurement",
+        "Demo-specific migration patterns are asserted but not tracked longitudinally — we know Gen Z watches less TV but don't have good data on what specific content they're consuming instead",
+        "Whether creator-branded shows have different viewer retention curves than traditionally marketed shows — this would prove the discovery bridge thesis but no platform publishes this data",
+        "Whether any streamer is using creator audience data to improve its own recommendation engine — Amazon could theoretically use Wondery listening data to improve Prime Video discovery but there's no evidence they do"
       ]
     },
     "discovery_bridge": {
-      "summary": "Creator-branded content may be the only reliable mechanism for bringing algorithmically-sorted audiences back into scripted consumption. The value of the creator brand isn't the IP itself — it's the targeting that the creator's audience relationship provides for free, which would cost streamers millions in marketing and which their own recommendation infrastructure cannot replicate.",
+      "summary": "If audiences have migrated to creator platforms because of superior discovery, then the only way to bring them back to scripted content is through the discovery mechanism they already trust: the creator brand itself. When Ashley Flowers tells 30 million Crime Junkie listeners to watch a show, she's doing the job that Netflix's recommendation algorithm should be doing but can't. The creator brand functions as targeting infrastructure — identifying and reaching the specific audience segment most likely to engage with a specific piece of scripted content. This targeting is more precise than any ad campaign and costs the platform nothing. The companies building this bridge — Audiochuck, Wondery, QCode — are not just content companies. They are discovery companies operating in a market where discovery is the binding constraint.",
       "evidence": [
-        "Netflix committing to 50-75 original video podcast shows for 2026 launch",
-        "Netflix-Spotify deal and Netflix-iHeartMedia deal pulling podcast content off YouTube as competitive play",
-        "Wondery's systematic podcast-to-TV pipeline: Dirty John, Dr. Death, Shrink Next Door, WeCrashed all successful adaptations",
-        "Audiochuck $250M valuation and Chernin investment funding creator-to-scripted expansion",
-        "Matt Shanfield hired from Sony nonfiction to build Audiochuck TV/film vertical",
-        "Netflix video podcast economics: $5K-50K per episode vs. $3-10M for scripted hour",
-        "57% of new streaming subscribers choosing ad-supported tiers, creating volume demand creator content fills"
+        "Netflix committed to launching 50-75 original video podcast shows in early 2026, explicitly to compete with YouTube for casual viewing time and to expand its ad-supported inventory at a fraction of scripted cost ($5K-50K per episode vs. $3-10M).",
+        "Netflix pulled Ringer podcast content off YouTube as part of its Spotify deal and locked iHeartMedia content into platform exclusivity — treating creator audiences as proprietary acquisition channels.",
+        "Wondery's adaptation track record (Dirty John, Dr. Death, Shrink Next Door, WeCrashed, Joe vs. Carole) demonstrates a systematic, repeatable podcast-to-scripted pipeline — not a one-off.",
+        "Audiochuck received investment from Chernin Group at a reported $250M valuation and hired Matt Shanfield from Sony nonfiction to build a dedicated TV/film division — a creator-native company institutionalizing the bridge function.",
+        "57% of new streaming subscribers are choosing ad-supported tiers, creating structural demand for high-volume, lower-cost content that creator-native formats can fill.",
+        "Golden Globes introduced its first podcast category in 2026 — formal institutional recognition that audio-native content is peer entertainment, not a feeder medium."
       ],
       "confidence": "medium-high",
       "gaps": [
-        "Conversion data: do podcast audiences actually follow adaptations to screen?",
-        "What development executives actually do at creator-native companies vs. traditional studios",
-        "How creator-driven companies protect IP/brand differently than traditional licensors",
-        "The economics of creator-driven audience acquisition vs. traditional marketing spend",
-        "Whether the proof-of-concept model (podcast audience as market validation) actually reduces development risk in practice"
+        "The central claim — that creator brands function as discovery infrastructure — is inferential. No study has directly measured whether podcast listeners convert to TV viewers of adapted properties at rates higher than traditional marketing achieves.",
+        "How development executives at creator-native companies actually protect brand and IP differently than traditional licensors — this is the thesis's most original claim and the one with the least empirical backing",
+        "The economics of creator-driven audience acquisition vs. traditional marketing spend — if a creator brand delivers a pre-targeted audience for free, what is that worth in CPM-equivalent terms?",
+        "Whether the 'proof of concept' model (podcast audience validates market before development spend) actually reduces production failure rates in practice"
       ]
     }
   },
   "ip_landscape": {
     "traditional": {
-      "books": {"status": "saturating", "notes": "Option price inflation, declining conversion rates, pool shrinking after decades of mining"},
-      "comics": {"status": "fatigued", "notes": "Marvel/DC tentpole fatigue. Independent comics and manga potentially undertapped"},
-      "video_games": {"status": "accelerating", "notes": "6 theatrical releases in 2026. Last of Us, Fallout successful. Pipeline depth unclear"},
-      "songs_jukebox": {"status": "early", "notes": "Bohemian Rhapsody, Rocketman proved model. Piña Colada in development. Largely untapped catalog"},
-      "theater": {"status": "stable", "notes": "Hamilton model works but limited pipeline. Adaptation flows both directions"},
-      "journalism": {"status": "evolved", "notes": "Pipeline evolved from magazine features to podcast-driven true crime"},
-      "life_rights": {"status": "heavily_mined", "notes": "Podcast layer gives new life but may be repackaging same material"},
-      "board_games_toys": {"status": "uncertain", "notes": "Barbie proved model but replicability undemonstrated"}
+      "books": {"status": "saturating", "notes": "Oldest pipeline. Option prices inflating as studios compete for shrinking viable pool. Romantasy ($600M in sales) failing to convert to screen despite demand."},
+      "comics": {"status": "fatigued", "notes": "Marvel/DC tentpole fatigue visible in non-franchise box office decline. Independent comics and manga potentially undertapped but no systematic pipeline exists."},
+      "video_games": {"status": "accelerating", "notes": "Six theatrical releases in 2026. Last of Us, Fallout, Mario proved viability. A24/Garland attached to Elden Ring. Pipeline expanding rapidly — watch for saturation signals in 2-3 years."},
+      "songs_jukebox": {"status": "early", "notes": "Bohemian Rhapsody ($910M worldwide) and Rocketman proved the model. Piña Colada in active development. Vast untapped catalog but unclear how many songs support narrative adaptation."},
+      "theater": {"status": "stable", "notes": "Hamilton model works but pipeline is narrow. Adaptation flows both directions (screen-to-stage increasingly common). Not a volume solution."},
+      "journalism": {"status": "evolved", "notes": "Classic magazine-feature-to-film pipeline has been absorbed into podcast-driven true crime. The IP category didn't die — it migrated formats."},
+      "life_rights": {"status": "heavily_mined", "notes": "Podcast layer (Wondery, Serial) gives new packaging but underlying material is the same true stories. Risk of audience fatigue on true crime specifically."},
+      "board_games_toys": {"status": "uncertain", "notes": "Barbie ($1.4B worldwide) proved the model spectacularly but no second proof point exists. Mattel has slate of projects but none have demonstrated audience demand."}
     },
     "creator_driven": {
-      "podcasts": {"status": "most_mature", "notes": "Audiochuck, Wondery, Spotify, iHeartMedia. Systematic adaptation pipelines emerging"},
-      "youtube": {"status": "accelerating", "notes": "MrBeast-to-Netflix model. Creator-to-studio deals increasing. YouTube at 11.1% TV streaming share"},
-      "tiktok": {"status": "nascent", "notes": "Regulatory uncertainty complicates. Talent discovery mechanism is platform-agnostic"},
-      "newsletters": {"status": "early", "notes": "Optionist model, Free Press/Paramount. Small audiences but niche/prestige opportunity"},
-      "livestreaming": {"status": "emerging", "notes": "Markiplier Iron Lung, Kai Cenat crossover plays. Gaming-to-entertainment pipeline forming"}
+      "podcasts": {"status": "most_mature", "notes": "Systematic adaptation pipelines at Wondery, Audiochuck, Spotify Studios. Netflix entering aggressively with 50-75 shows. Most developed creator-to-scripted bridge."},
+      "youtube": {"status": "accelerating", "notes": "MrBeast/Netflix model. 11.1% of TV streaming. Creator-to-studio deals increasing. YouTube securing NFL and Oscars (2029) for living room dominance."},
+      "tiktok": {"status": "nascent", "notes": "Powerful talent discovery engine but U.S. regulatory uncertainty (ban deadline extended repeatedly into 2026) limits institutional investment. Format innovation is platform-agnostic."},
+      "newsletters": {"status": "early", "notes": "The Optionist (£200/month IP scouting newsletter), Free Press/Paramount partnership, Fox/Meet Cute acquisition. Small audiences but high-value niche positioning."},
+      "livestreaming": {"status": "emerging", "notes": "Markiplier's Iron Lung in major theaters 2026. A24 developing Backrooms from YouTube creator. Kai Cenat/Kevin Hart crossover film. Gaming-to-entertainment pipeline forming."}
     }
   },
   "development_function": {
-    "summary": "The existing literature says almost nothing about what happens when a creator-led company needs to professionalize its development function. This is the thesis's original analytical territory.",
+    "summary": "The existing literature on entertainment industry restructuring focuses almost entirely on platforms, creators, and content. Nobody is writing about what happens inside the companies building the bridge — specifically, what the development executive's job looks like when IP originates from a creator ecosystem rather than a publishing house or agency. This is the thesis's most original analytical territory and the foundation of the book's central argument.",
     "key_questions": [
-      "What does the development executive's job look like at Audiochuck vs. at a traditional studio?",
-      "How do creator-driven companies protect IP and brand differently than traditional licensors?",
-      "How should creator-driven IP be valued (audience relationship depth vs. comparable sales)?",
-      "What creative control structures are needed when the creator IS the brand?",
-      "Where do the executives come from who can operate at the intersection of creator-native and institutional entertainment?"
+      "How does the development executive's role at Audiochuck differ from the same role at a traditional studio — and why does that difference matter?",
+      "When the creator IS the brand, how do you protect IP without constraining the creative relationship that makes the IP valuable?",
+      "How should creator-driven IP be valued when the asset is audience relationship depth, not comparable sales data?",
+      "What creative control structures work when a bad adaptation doesn't just hurt one show but damages the entire company's podcast downloads, talent recruitment, and ad revenue?",
+      "Where are the executives coming from who can operate at the intersection of creator-native and institutional entertainment — and what does their career path look like?"
     ],
     "tracked_executives": [
-      {"name": "Aaron Hart", "company": "Wondery", "title": "Head of TV and Film", "track_record": "Dirty John, Dr. Death, Shrink Next Door, Joe vs. Carole, WeCrashed"},
-      {"name": "Matt Shanfield", "company": "Audiochuck", "title": "Head of TV/Film Division", "background": "Sony Pictures Television Nonfiction president", "hired": "March 2026"},
-      {"name": "Jordan Moblo", "company": "Universal Studio Group", "title": "EVP Creative Acquisitions & IP Management", "notes": "Oversees UCP Audio"},
-      {"name": "Marshall Lewy", "company": "Wondery", "title": "Chief Content Officer", "notes": "Oversees podcast-to-TV pipeline strategy"}
+      {"name": "Aaron Hart", "company": "Wondery", "title": "Head of TV and Film", "track_record": "Dirty John, Dr. Death, Shrink Next Door, Joe vs. Carole, WeCrashed", "notes": "Most complete track record in podcast-to-TV development. Approach: attach A-list talent during podcast phase, not after."},
+      {"name": "Matt Shanfield", "company": "Audiochuck", "title": "Head of TV/Film Division", "background": "Sony Pictures Television Nonfiction president", "hired": "March 2026", "notes": "Left Sony as it was folding nonfiction under scripted. Now building the function from scratch with Chernin capital."},
+      {"name": "Jordan Moblo", "company": "Universal Studio Group", "title": "EVP Creative Acquisitions & IP Management", "notes": "Oversees UCP Audio — Universal's internal podcast studio built specifically to control IP from origination."},
+      {"name": "Marshall Lewy", "company": "Wondery", "title": "Chief Content Officer", "notes": "Oversees podcast-to-TV pipeline strategy. Wondery restructured August 2025 toward creator-led and video-focused content under his direction."}
     ]
   },
   "claims": [
     {
       "id": 1,
-      "claim": "The entertainment industry's restructuring is driven by the convergence of supply exhaustion, demand migration, and the discovery bridge — not by any single factor in isolation.",
+      "claim": "The entertainment industry's restructuring is driven by the convergence of three forces — supply exhaustion, demand migration, and the discovery bridge — not by any single factor in isolation. The interaction between them is what makes the shift structural rather than cyclical.",
       "confidence": "high",
       "force": "all"
     },
     {
       "id": 2,
-      "claim": "Creator-branded content functions as audience targeting infrastructure, not just content. The value is in the discovery mechanism, not the IP itself.",
+      "claim": "Creator-branded content functions as audience targeting infrastructure, not just content. The value to a streamer is not the IP — it's the pre-sorted, high-intent audience that the creator delivers, which the streamer's own recommendation engine cannot identify or reach.",
       "confidence": "medium-high",
       "force": "discovery_bridge"
     },
     {
       "id": 3,
-      "claim": "The development function at creator-native companies is fundamentally different from traditional studios and requires a new kind of executive who can bridge both worlds.",
+      "claim": "The development function at creator-native companies is fundamentally different from traditional studios — different IP protection incentives, different valuation frameworks, different creative control requirements — and building this function well is the binding constraint on whether creator-to-scripted translation succeeds or fails.",
       "confidence": "medium",
       "force": "discovery_bridge"
     },
     {
       "id": 4,
-      "claim": "Traditional IP pipelines are not declining uniformly — some categories (video games, songs) are accelerating while others (books, comics) show saturation. The overall pipeline volume is insufficient for streaming demand regardless.",
+      "claim": "Traditional IP pipelines are not declining uniformly. Some categories (video games, songs) are accelerating while others (books, comics) show saturation. But the total pipeline volume is structurally insufficient for streaming-era demand regardless of category-level variation.",
       "confidence": "medium-high",
       "force": "supply_exhaustion"
     },
     {
       "id": 5,
-      "claim": "Audience migration from scripted to creator platforms is driven primarily by superior algorithmic discovery, not by content quality decline. This means the solution is a discovery bridge, not better content.",
+      "claim": "Audience migration from scripted to creator platforms is driven primarily by superior algorithmic discovery, not by content quality decline or generational preference for 'short-form' content. This reframes the solution from 'make better content' to 'build better discovery' — and creator brands are currently the only available bridge.",
       "confidence": "medium",
       "force": "demand_migration"
     }
@@ -130,15 +127,16 @@
   "book_project": {
     "status": "advance_offers_received",
     "working_title": "TBD",
+    "narrative_arc": "The book tells the story of an industry losing its audience — not because it forgot how to make great content, but because the infrastructure that connected content to audiences broke, and a new infrastructure is being built by people Hollywood doesn't yet recognize as peers. It moves from the historical pipeline (how IP has always worked) through the disruption (what broke and why) to the institutional gap (what nobody is building yet) and ends with the argument that the executives who can bridge creator-native and institutional worlds hold the keys to the next era of entertainment.",
     "chapter_outline": [
-      {"chapter": 1, "title": "The Pipeline That Built Hollywood", "focus": "Historical IP origination model — books, comics, specs, licensing. Why it worked for decades. What sustained it.", "status": "lit_review_complete"},
-      {"chapter": 2, "title": "The Exhaustion", "focus": "Supply exhaustion across traditional IP categories. Option economics. Hit rate decline. Volume insufficiency.", "status": "research_in_progress"},
-      {"chapter": 3, "title": "The Great Migration", "focus": "Audience movement to creator platforms. Algorithmic discovery vs. institutional curation. Demo-specific patterns.", "status": "research_in_progress"},
-      {"chapter": 4, "title": "The YouTube Precedent", "focus": "15 years of creator ecosystem evolution. MCN rise and collapse. What survived. MrBeast model.", "status": "lit_review_complete"},
-      {"chapter": 5, "title": "The Audio Bridge", "focus": "Podcast-to-scripted pipeline. Wondery, Audiochuck, Spotify. The proof-of-concept model.", "status": "research_in_progress"},
-      {"chapter": 6, "title": "The New Development Executive", "focus": "What the job looks like at creator-native companies. Brand protection. Valuation. Creative control. Case studies.", "status": "not_started"},
-      {"chapter": 7, "title": "The Discovery Problem", "focus": "Why streamers can't find audiences for their own content. Creator brands as targeting infrastructure.", "status": "research_in_progress"},
-      {"chapter": 8, "title": "What Comes Next", "focus": "Emerging channels. Video games, songs, newsletters. The next wave of IP origination.", "status": "not_started"}
+      {"chapter": 1, "title": "The Pipeline That Built Hollywood", "focus": "The century-old system for finding stories: literary departments, comic book licensing, spec scripts, the agency model. Why it worked — scarcity made every bet defensible. How the economics sustained it.", "status": "lit_review_complete"},
+      {"chapter": 2, "title": "The Exhaustion", "focus": "What happens when a scarcity-based pipeline meets streaming-era demand for volume. Option price inflation, declining hit rates, the mining of every available category. Netflix walking away from the entire WBD library as the defining signal.", "status": "research_in_progress"},
+      {"chapter": 3, "title": "The Great Migration", "focus": "Where the audience actually went and why. The algorithmic discovery gap as the root cause, not content quality or generational preference. Demo-specific patterns. The data that shows this is structural, not cyclical.", "status": "research_in_progress"},
+      {"chapter": 4, "title": "The YouTube Precedent", "focus": "Fifteen years of data on what happens when creators build audiences outside institutional control. The MCN boom and bust. What survived. Why MrBeast's videos lose money and his chocolate company doesn't. The lessons Hollywood should have learned but didn't.", "status": "lit_review_complete"},
+      {"chapter": 5, "title": "The Audio Bridge", "focus": "Podcasting as the most mature creator-to-scripted pipeline. Wondery's systematic model. Audiochuck's expansion. Netflix's 75-show podcast bet. Why audio IP has structural advantages over every other creator format for adaptation.", "status": "research_in_progress"},
+      {"chapter": 6, "title": "The New Development Executive", "focus": "The job nobody has defined yet. What it means to build a development function when the creator IS the brand, when the audience is the asset, when a bad adaptation threatens the whole company. Case studies from Wondery, Audiochuck, and UCP Audio. The career path that doesn't exist yet but will.", "status": "not_started"},
+      {"chapter": 7, "title": "The Discovery Problem", "focus": "Why Netflix and every other streamer can't find audiences for their own content. The recommendation engine gap. Creator brands as the substitute for algorithmic targeting. The economics of creator-driven audience acquisition vs. traditional marketing.", "status": "research_in_progress"},
+      {"chapter": 8, "title": "What Comes Next", "focus": "The next wave: video games, music catalogs, newsletters, livestreaming. Which channels will produce the next Wondery. What the industry looks like in five years if the thesis is right — and what it looks like if it's wrong.", "status": "not_started"}
     ]
   }
 }
