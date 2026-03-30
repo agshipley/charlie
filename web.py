@@ -847,22 +847,46 @@ def start_scheduler():
 # ── Entry Point ──────────────────────────────────────────────────────────
 
 def seed_data():
-    """Copy seed files into the data volume if they don't already exist.
-    On Railway, the volume at /app/data overlays the git repo's data/ directory,
-    so we keep seed files in seed/ and copy them on first boot."""
+    """Copy seed files into the data volume if they don't already exist."""
     import shutil
     seed_dir = Path(__file__).parent / "seed"
+    print(f"[Seed] Looking for seed dir at: {seed_dir} (exists: {seed_dir.exists()})")
+    print(f"[Seed] Data dir is: {config.data_dir} (exists: {config.data_dir.exists()})")
     if not seed_dir.exists():
+        print("[Seed] No seed directory found, skipping")
         return
 
     for src in seed_dir.rglob("*"):
         if src.is_file():
             rel = src.relative_to(seed_dir)
             dest = config.data_dir / rel
+            print(f"[Seed] {rel} → {dest} (exists: {dest.exists()})")
             if not dest.exists():
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, dest)
-                print(f"[Seed] Copied {rel} to data volume")
+                print(f"[Seed] ✓ Copied {rel}")
+            else:
+                print(f"[Seed] ✗ Already exists, skipping")
+
+
+@app.route("/seed")
+def force_seed():
+    """Force re-seed from seed directory, overwriting existing files."""
+    import shutil
+    seed_dir = Path(__file__).parent / "seed"
+    if not seed_dir.exists():
+        return f"No seed directory at {seed_dir}"
+
+    results = []
+    for src in seed_dir.rglob("*"):
+        if src.is_file():
+            rel = src.relative_to(seed_dir)
+            dest = config.data_dir / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dest)
+            results.append(f"Copied {rel} → {dest}")
+
+    return "<br>".join(results) if results else "No files to seed"
 
 
 if __name__ == "__main__":
