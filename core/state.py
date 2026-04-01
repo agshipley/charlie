@@ -121,7 +121,7 @@ class StateManager:
     def load_context(self) -> dict:
         """Load all of Liz's persistent context files."""
         context = {}
-        for name in ["profile", "slate", "watching"]:
+        for name in ["profile", "slate", "watching", "sessions"]:
             path = config.context_dir / f"{name}.json"
             data = self._read(path)
             if data:

@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Brief — Question Companion</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f9f8f5;
+    color: #1a1a1a;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+  .container { max-width: 720px; margin: 0 auto; }
+
+  .header {
+    border-bottom: 1px solid #e5e2da;
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .header-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .header h1 { font-size: 17px; font-weight: 500; }
+  .brief-link { font-size: 12px; color: #185FA5; text-decoration: none; }
+  .brief-link:hover { text-decoration: underline; }
+  .date { font-size: 12px; color: #888; }
+
+  .token-section {
+    margin-bottom: 1.5rem;
+    background: #fff;
+    border: 1px solid #e5e2da;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+  }
+  .token-section h3 { font-size: 13px; font-weight: 500; color: #555; margin-bottom: 8px; }
+  .token-row { display: flex; gap: 8px; align-items: center; }
+  .token-row input {
+    flex: 1;
+    font-size: 13px;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 7px;
+    background: #f9f8f5;
+    color: #1a1a1a;
+    font-family: monospace;
+    outline: none;
+  }
+  .token-row input:focus { border-color: #b5d4f4; background: #fff; }
+  .token-save {
+    font-size: 12px;
+    padding: 6px 14px;
+    border: 1px solid #ddd;
+    border-radius: 7px;
+    background: transparent;
+    color: #555;
+    cursor: pointer;
+  }
+  .token-save:hover { background: #f0ede6; }
+  .token-status { font-size: 11px; color: #aaa; margin-top: 6px; }
+  .token-status.saved { color: #0F6E56; }
+
+  .questions { display: flex; flex-direction: column; gap: 10px; margin-bottom: 2rem; }
+
+  .q-card {
+    background: #fff;
+    border: 1px solid #e5e2da;
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+    transition: border-color 0.15s;
+  }
+  .q-card:hover { border-color: #ccc; }
+
+  .q-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .q-tier {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 9px;
+    border-radius: 6px;
+    letter-spacing: 0.02em;
+  }
+  .tier-signal { background: #E6F1FB; color: #0C447C; }
+  .tier-flag   { background: #FAEEDA; color: #633806; }
+  .tier-world  { background: #E1F5EE; color: #085041; }
+  .q-headline  { font-size: 12px; color: #888; }
+
+  .q-context {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.5;
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    background: #f9f8f5;
+    border-radius: 8px;
+    border-left: 2px solid #e5e2da;
+  }
+
+  .q-text {
+    font-size: 14px;
+    color: #1a1a1a;
+    line-height: 1.55;
+    margin-bottom: 12px;
+  }
+
+  .q-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .q-actions button {
+    font-size: 12px;
+    padding: 5px 13px;
+    border-radius: 7px;
+    border: 1px solid #ddd;
+    background: transparent;
+    color: #555;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .q-actions button:hover { background: #f0ede6; color: #1a1a1a; }
+  .q-actions .btn-discuss { border-color: #b5d4f4; color: #185FA5; }
+  .q-actions .btn-discuss:hover { background: #E6F1FB; }
+  .q-actions .btn-flagged { border-color: #9FE1CB; color: #0F6E56; cursor: default; }
+  .q-actions button:disabled { opacity: 0.55; cursor: default; }
+
+  .divider { border: none; border-top: 1px solid #e5e2da; margin: 2rem 0 1.5rem; }
+
+  .watchlist-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1rem; }
+  .watchlist-header h2 { font-size: 14px; font-weight: 500; color: #555; }
+  .watchlist-count { font-size: 12px; color: #aaa; }
+
+  .flagged-list { display: flex; flex-direction: column; gap: 6px; }
+
+  .flagged-item {
+    background: #fff;
+    border: 1px solid #e5e2da;
+    border-radius: 9px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .fi-left { flex: 1; }
+  .fi-headline { font-size: 13px; color: #1a1a1a; font-weight: 500; }
+  .fi-tier { font-size: 11px; color: #aaa; margin-top: 2px; }
+  .fi-entry { font-size: 12px; color: #666; margin-top: 4px; line-height: 1.4; }
+  .fi-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+
+  .bucket-toggle { display: flex; gap: 4px; }
+  .bucket-btn {
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    background: transparent;
+    color: #aaa;
+    cursor: pointer;
+  }
+  .bucket-btn.sel-active { background: #E6F1FB; border-color: #b5d4f4; color: #0C447C; }
+  .bucket-btn.sel-background { background: #f9f8f5; border-color: #ccc; color: #555; }
+
+  .fi-remove {
+    font-size: 18px; color: #ccc; background: none; border: none; cursor: pointer; line-height: 1; padding: 0;
+  }
+  .fi-remove:hover { color: #888; }
+
+  .empty { font-size: 13px; color: #aaa; font-style: italic; padding: 6px 0; }
+
+  .push-section { margin-top: 1.25rem; }
+  .push-btn {
+    font-size: 13px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid #b5d4f4;
+    background: #E6F1FB;
+    color: #0C447C;
+    cursor: pointer;
+    width: 100%;
+    font-weight: 500;
+    transition: background 0.15s;
+  }
+  .push-btn:hover:not(:disabled) { background: #cfe3f7; }
+  .push-btn:disabled { opacity: 0.45; cursor: default; }
+
+  .push-status {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #aaa;
+    text-align: center;
+    min-height: 18px;
+  }
+  .push-status.success { color: #0F6E56; }
+  .push-status.error { color: #c0392b; }
+
+  .session-section {
+    margin-top: 2rem;
+    background: #fff;
+    border: 1px solid #e5e2da;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+  }
+  .session-section h2 { font-size: 14px; font-weight: 500; color: #555; margin-bottom: 12px; }
+
+  .session-field { margin-bottom: 12px; }
+  .session-field label { font-size: 12px; color: #888; display: block; margin-bottom: 4px; }
+  .session-field textarea {
+    width: 100%;
+    font-size: 13px;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 7px;
+    background: #f9f8f5;
+    color: #1a1a1a;
+    resize: vertical;
+    min-height: 70px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.5;
+    outline: none;
+  }
+  .session-field textarea:focus { border-color: #b5d4f4; background: #fff; }
+  .session-field textarea::placeholder { color: #bbb; }
+
+  .session-push-btn {
+    font-size: 13px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 1px solid #9FE1CB;
+    background: #E1F5EE;
+    color: #085041;
+    cursor: pointer;
+    width: 100%;
+    font-weight: 500;
+    transition: background 0.15s;
+    margin-top: 4px;
+  }
+  .session-push-btn:hover:not(:disabled) { background: #c8ede0; }
+  .session-push-btn:disabled { opacity: 0.45; cursor: default; }
+  .session-status {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #aaa;
+    text-align: center;
+    min-height: 18px;
+  }
+  .session-status.success { color: #0F6E56; }
+  .session-status.error { color: #c0392b; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="header-top">
+      <h1>The Brief — questions</h1>
+      <a class="brief-link" href="https://charlie-productions.up.railway.app/brief/2026-04-01" target="_blank">view full brief ↗</a>
+    </div>
+    <div class="date">Wednesday, April 1, 2026</div>
+  </div>
+
+  <div class="token-section">
+    <h3>GitHub token</h3>
+    <div class="token-row">
+      <input type="password" id="gh-token" placeholder="ghp_…" />
+      <button class="token-save" onclick="saveToken()">Save</button>
+    </div>
+    <div class="token-status" id="token-status">Paste your GitHub personal access token to enable pushing to Charlie.</div>
+  </div>
+
+  <div class="questions" id="questions-list"></div>
+
+  <hr class="divider">
+
+  <div class="watchlist-header">
+    <h2>flagged for watchlist</h2>
+    <span class="watchlist-count" id="wl-count">0 items</span>
+  </div>
+
+  <div class="flagged-list" id="flagged-list">
+    <div class="empty">Nothing flagged yet.</div>
+  </div>
+
+  <div class="push-section">
+    <button class="push-btn" id="push-btn" onclick="pushToCharlie()" disabled>Push to Charlie</button>
+    <div class="push-status" id="push-status"></div>
+  </div>
+
+  <div class="session-section">
+    <h2>end of session — push to Charlie</h2>
+
+    <div class="session-field">
+      <label>questions engaged</label>
+      <textarea id="s-questions" placeholder="Which questions did you dig into today?"></textarea>
+    </div>
+
+    <div class="session-field">
+      <label>key conclusions</label>
+      <textarea id="s-conclusions" placeholder="What did you actually conclude? One per line."></textarea>
+    </div>
+
+    <div class="session-field">
+      <label>open questions</label>
+      <textarea id="s-open" placeholder="What's still unresolved? What do you want Charlie to keep tracking? One per line."></textarea>
+    </div>
+
+    <button class="session-push-btn" id="session-push-btn" onclick="pushSession()" disabled>Push session to Charlie</button>
+    <div class="session-status" id="session-status"></div>
+  </div>
+
+</div>
+<script>
+const REPO = "agshipley/charlie";
+const WATCHING_PATH = "context/watching.json";
+const SESSIONS_PATH = "context/sessions.json";
+const API = "https://api.github.com";
+
+const QUESTIONS = [
+  {
+    tier: "signal",
+    tierLabel: "The Signal",
+    headline: "ESPN / NFL Network consolidation",
+    question: "Does Amazon make a play for NBA TV or MLB Network next — and if Amazon absorbs league channels alongside its streaming rights, does it become a de facto sports network that fundamentally changes its competitive positioning against Netflix?",
+    context: "ESPN took operational control of NFL Network and RedZone today. The last standalone league-owned linear property falls. The remaining cable bundle loses its structural justification, accelerating cord-cutting.",
+    watchlistEntry: "Amazon sports network strategy — NBA TV and MLB Network acquisition potential"
+  },
+  {
+    tier: "flag",
+    tierLabel: "Bullshit Flag",
+    headline: "Studio pulls OpenAI investment — April 1",
+    question: "Is this an April Fools' plant? If real, which studio — and does this represent a single company's disillusionment or an industry-wide reassessment of AI video tools on a 2–3 year horizon?",
+    context: "A report surfaced that a major unnamed studio withdrew its OpenAI investment while OpenAI exits video generation. Thin sourcing plus April 1 demands a hard flag before acting.",
+    watchlistEntry: "Studio AI investment reassessment — OpenAI video generation exit and Hollywood response"
+  },
+  {
+    tier: "world",
+    tierLabel: "Your World",
+    headline: "Netflix creator licensing → Audiochuck framing",
+    question: "What is Netflix's implied CPM equivalent per acquired listener across these deals? If creator audience licensing is cheaper than Netflix's standard marketing spend per subscriber, the pricing floor for Audiochuck's negotiating position just moved up.",
+    context: "Netflix's deals with iHeart, Spotify, Ms. Rachel, and Mark Rober are systematic audience acquisition. This maps directly to how Audiochuck's 12M monthly listeners should be framed in the Shanfield conversation.",
+    watchlistEntry: "Netflix creator audience licensing economics — CPM equivalent and pricing implications for podcast IP"
+  }
+];
+
+let flagged = [];
+let ghToken = "";
+
+function saveToken() {
+  const val = document.getElementById("gh-token").value.trim();
+  if (!val) return;
+  ghToken = val;
+  document.getElementById("token-status").textContent = "Token saved for this session.";
+  document.getElementById("token-status").className = "token-status saved";
+  updatePushBtn();
+  document.getElementById("session-push-btn").disabled = false;
+}
+
+function updatePushBtn() {
+  document.getElementById("push-btn").disabled = !ghToken || flagged.length === 0;
+}
+
+function renderQuestions() {
+  const list = document.getElementById("questions-list");
+  list.innerHTML = "";
+  QUESTIONS.forEach((q, i) => {
+    const isFlagged = flagged.some(f => f.i === i);
+    const card = document.createElement("div");
+    card.className = "q-card";
+    card.innerHTML = `
+      <div class="q-meta">
+        <span class="q-tier tier-${q.tier}">${q.tierLabel}</span>
+        <span class="q-headline">${q.headline}</span>
+      </div>
+      <div class="q-context">${q.context}</div>
+      <div class="q-text">→ ${q.question}</div>
+      <div class="q-actions">
+        <button class="btn-discuss" onclick="discuss(${i})">Discuss ↗</button>
+        <button onclick="unpack(${i})">Unpack context ↗</button>
+        <button onclick="connect(${i})">Connect to my world ↗</button>
+        ${isFlagged
+          ? `<button class="btn-flagged" disabled>Flagged ✓</button>`
+          : `<button onclick="flagItem(${i})">Flag for watchlist</button>`}
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function discuss(i) {
+  const q = QUESTIONS[i];
+  clip(`Let's dig into this question from today's Brief — ${q.tierLabel} (${q.headline}):\n\n"${q.question}"\n\nContext: ${q.context}\n\nBe Socratic — push back and ask me follow-up questions. Unpack the structural forces. And connect it to my projects (Generational Love, Unwell, Fox & Hound, American Proof, Somnia), my Sony first-look deal, and the Audiochuck/Shanfield conversation where relevant.`, "Prompt copied — paste into Claude ↗");
+}
+
+function unpack(i) {
+  const q = QUESTIONS[i];
+  clip(`Unpack the context behind this question from today's Brief — ${q.tierLabel} (${q.headline}):\n\n"${q.question}"\n\nContext: ${q.context}\n\nWhat are the full structural forces at play and what would it mean if the answer goes one way vs. the other?`, "Prompt copied — paste into Claude ↗");
+}
+
+function connect(i) {
+  const q = QUESTIONS[i];
+  clip(`Connect this question from today's Brief to my specific situation — ${q.tierLabel} (${q.headline}):\n\n"${q.question}"\n\nContext: ${q.context}\n\nGiven my active projects (Generational Love, Unwell, Fox & Hound, American Proof, Somnia), Sony first-look deal, and the Audiochuck/Shanfield conversation — how does this intersect with where I am right now?`, "Prompt copied — paste into Claude ↗");
+}
+
+function flagItem(i) {
+  if (flagged.some(f => f.i === i)) return;
+  flagged.push({ i, bucket: "active" });
+  renderQuestions();
+  renderFlagged();
+  updatePushBtn();
+}
+
+function removeFlag(idx) {
+  flagged.splice(idx, 1);
+  renderQuestions();
+  renderFlagged();
+  updatePushBtn();
+}
+
+function setBucket(idx, bucket) {
+  flagged[idx].bucket = bucket;
+  renderFlagged();
+}
+
+function renderFlagged() {
+  const list = document.getElementById("flagged-list");
+  document.getElementById("wl-count").textContent = flagged.length + " item" + (flagged.length !== 1 ? "s" : "");
+  list.innerHTML = "";
+  if (flagged.length === 0) {
+    list.innerHTML = `<div class="empty">Nothing flagged yet.</div>`;
+    return;
+  }
+  flagged.forEach((f, idx) => {
+    const q = QUESTIONS[f.i];
+    const div = document.createElement("div");
+    div.className = "flagged-item";
+    div.innerHTML = `
+      <div class="fi-left">
+        <div class="fi-headline">${q.headline}</div>
+        <div class="fi-tier">${q.tierLabel}</div>
+        <div class="fi-entry">${q.watchlistEntry}</div>
+      </div>
+      <div class="fi-right">
+        <div class="bucket-toggle">
+          <button class="bucket-btn ${f.bucket === 'active' ? 'sel-active' : ''}" onclick="setBucket(${idx},'active')">active</button>
+          <button class="bucket-btn ${f.bucket === 'background' ? 'sel-background' : ''}" onclick="setBucket(${idx},'background')">background</button>
+        </div>
+        <button class="fi-remove" onclick="removeFlag(${idx})">×</button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+async function pushToCharlie() {
+  if (!ghToken || flagged.length === 0) return;
+  const btn = document.getElementById("push-btn");
+  const status = document.getElementById("push-status");
+  btn.disabled = true;
+  btn.textContent = "Pushing…";
+  status.textContent = "Reading current watching.json…";
+  status.className = "push-status";
+
+  try {
+    const headers = {
+      "Authorization": `token ${ghToken}`,
+      "Accept": "application/vnd.github.v3+json",
+      "Content-Type": "application/json"
+    };
+
+    const getRes = await fetch(`${API}/repos/${REPO}/contents/${WATCHING_PATH}`, { headers });
+    if (!getRes.ok) throw new Error(`Could not read file (${getRes.status})`);
+    const fileData = await getRes.json();
+    const current = JSON.parse(atob(fileData.content.replace(/\n/g, "")));
+
+    flagged.forEach(f => {
+      const entry = QUESTIONS[f.i].watchlistEntry;
+      const bucket = f.bucket === "background" ? "background" : "active";
+      if (!current[bucket].includes(entry)) current[bucket].push(entry);
+    });
+
+    const today = new Date().toISOString().split("T")[0];
+    current.updated_at = today;
+
+    status.textContent = "Writing to Charlie…";
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(current, null, 2))));
+    const putRes = await fetch(`${API}/repos/${REPO}/contents/${WATCHING_PATH}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        message: `Brief companion: add ${flagged.length} watchlist item${flagged.length !== 1 ? "s" : ""} (${today})`,
+        content: encoded,
+        sha: fileData.sha
+      })
+    });
+
+    if (!putRes.ok) {
+      const err = await putRes.json();
+      throw new Error(err.message || putRes.status);
+    }
+
+    status.textContent = `✓ ${flagged.length} item${flagged.length !== 1 ? "s" : ""} pushed to Charlie`;
+    status.className = "push-status success";
+    btn.textContent = "Pushed ✓";
+    flagged = [];
+    renderQuestions();
+    renderFlagged();
+
+  } catch (err) {
+    status.textContent = `Error: ${err.message}`;
+    status.className = "push-status error";
+    btn.textContent = "Push to Charlie";
+    updatePushBtn();
+  }
+}
+
+async function pushSession() {
+  if (!ghToken) return;
+  const btn = document.getElementById("session-push-btn");
+  const status = document.getElementById("session-status");
+
+  const questionsEngaged = document.getElementById("s-questions").value.trim();
+  const conclusionsRaw = document.getElementById("s-conclusions").value.trim();
+  const openRaw = document.getElementById("s-open").value.trim();
+
+  if (!questionsEngaged && !conclusionsRaw && !openRaw) {
+    status.textContent = "Nothing to push — fill in at least one field.";
+    status.className = "session-status error";
+    return;
+  }
+
+  const conclusions = conclusionsRaw ? conclusionsRaw.split("\n").map(s => s.trim()).filter(Boolean) : [];
+  const openQuestions = openRaw ? openRaw.split("\n").map(s => s.trim()).filter(Boolean) : [];
+  const today = new Date().toISOString().split("T")[0];
+
+  const newEntry = {
+    date: today,
+    questions_engaged: questionsEngaged ? [questionsEngaged] : [],
+    key_conclusions: conclusions,
+    open_questions: openQuestions,
+    pushed_to_watchlist: flagged.map(f => QUESTIONS[f.i].watchlistEntry)
+  };
+
+  btn.disabled = true;
+  btn.textContent = "Pushing…";
+  status.textContent = "Reading sessions.json…";
+  status.className = "session-status";
+
+  try {
+    const headers = {
+      "Authorization": `token ${ghToken}`,
+      "Accept": "application/vnd.github.v3+json",
+      "Content-Type": "application/json"
+    };
+
+    const getRes = await fetch(`${API}/repos/${REPO}/contents/${SESSIONS_PATH}`, { headers });
+    if (!getRes.ok) throw new Error(`Could not read sessions.json (${getRes.status})`);
+    const fileData = await getRes.json();
+    const current = JSON.parse(atob(fileData.content.replace(/\n/g, "")));
+
+    current.sessions = current.sessions || [];
+    current.sessions.push(newEntry);
+    if (current.sessions.length > 5) {
+      current.sessions = current.sessions.slice(-5);
+    }
+
+    status.textContent = "Writing to Charlie…";
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(current, null, 2))));
+    const putRes = await fetch(`${API}/repos/${REPO}/contents/${SESSIONS_PATH}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        message: `Brief companion: session summary (${today})`,
+        content: encoded,
+        sha: fileData.sha
+      })
+    });
+
+    if (!putRes.ok) {
+      const err = await putRes.json();
+      throw new Error(err.message || putRes.status);
+    }
+
+    status.textContent = "✓ Session pushed to Charlie";
+    status.className = "session-status success";
+    btn.textContent = "Pushed ✓";
+
+    document.getElementById("s-questions").value = "";
+    document.getElementById("s-conclusions").value = "";
+    document.getElementById("s-open").value = "";
+
+  } catch (err) {
+    status.textContent = `Error: ${err.message}`;
+    status.className = "session-status error";
+    btn.textContent = "Push session to Charlie";
+    btn.disabled = false;
+  }
+}
+
+function clip(text, msg) {
+  navigator.clipboard.writeText(text).then(() => toast(msg)).catch(() => prompt("Copy:", text));
+}
+
+function toast(msg) {
+  let t = document.getElementById("_toast");
+  if (!t) {
+    t = document.createElement("div");
+    t.id = "_toast";
+    t.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;font-size:13px;padding:8px 18px;border-radius:8px;z-index:999;opacity:0;transition:opacity 0.2s;pointer-events:none;white-space:nowrap;";
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = "1";
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.style.opacity = "0", 2400);
+}
+
+renderQuestions();
+renderFlagged();
+</script>
+</body>
+</html>

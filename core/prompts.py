@@ -23,10 +23,33 @@ THESIS_FORCES = """The thesis tracks three interconnected forces:
 SOURCE_PRIORITY = """Source priority: Matthew Ball (streaming economics), Rushfield/Ankler (studio model), Belloni/Puck (deal intelligence), Parrot Analytics, Nielsen, Edison Research, then Deadline/Variety/THR/Wrap."""
 
 
+# ── Shared Session Context Loader ────────────────────────────────────────
+
+def load_sessions_context(sessions: dict | None) -> str:
+    """Format recent session summaries for injection into prompts."""
+    if not sessions:
+        return ""
+    recent = sessions.get("sessions", [])[-5:]
+    if not recent:
+        return ""
+    lines = ["## Liz's Recent Session Conclusions"]
+    for s in reversed(recent):
+        lines.append(f"\n### {s.get('date', 'unknown')}")
+        conclusions = s.get("key_conclusions", [])
+        if conclusions:
+            lines.append("Key conclusions:")
+            for c in conclusions:
+                lines.append(f"  - {c}")
+        open_qs = s.get("open_questions", [])
+        if open_qs:
+            lines.append("Open questions:")
+            for q in open_qs:
+                lines.append(f"  - {q}")
+    lines.append("\nUse these conclusions to build forward — do not re-explain what Liz already knows. Surface new information that advances her open questions.")
+    return "\n".join(lines)
+
+
 # ── Ingestion Prompt ─────────────────────────────────────────────────────
-# NOTE: The ingestion agent uses inline prompts in agents/ingestion.py
-# for the multi-pass search architecture. This function is kept for
-# the structuring pass that combines raw search results into signals.
 
 def build_ingestion_prompt(watchlist: dict, thesis_summary: str | None = None) -> str:
     """Build the system prompt for the ingestion structuring pass."""
@@ -165,6 +188,9 @@ def build_brief_prompt(context: dict) -> str:
 
     profile = context.get("profile", {})
     slate = context.get("slate", {})
+    sessions = context.get("sessions", {})
+
+    sessions_section = load_sessions_context(sessions)
 
     return f"""You are the Brief Generator for Charlie, built for Liz Varner.
 
@@ -176,6 +202,8 @@ Today: {today}
 Positioning: {profile.get('positioning', 'creator-to-scripted translation; institutions under pressure')}
 Active slate: {json.dumps(slate.get('projects', []))}
 Key relationships: {json.dumps(slate.get('relationships', []))}
+
+{sessions_section}
 
 ## Thesis Context
 {THESIS_FORCES}
