@@ -22,6 +22,11 @@
       "entity": "Netflix",
       "type": "platform",
       "nature": "Key buyer relationship"
+    },
+    {
+      "entity": "Hulu",
+      "type": "platform",
+      "nature": "Key buyer relationship"
     }
   ],
   "active_conversations": [
