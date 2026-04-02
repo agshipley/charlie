@@ -1,7 +1,6 @@
 """
 Charlie Web — serves briefs and collects feedback.
 """
-
 import json
 import os
 from datetime import date, datetime
@@ -13,10 +12,10 @@ from core.state import StateManager
 app = Flask(__name__)
 state = StateManager()
 
+
 # ── Feedback Storage ─────────────────────────────────────────────────────
 
 FEEDBACK_PATH = config.data_dir / "feedback.json"
-
 
 def load_feedback() -> dict:
     if FEEDBACK_PATH.exists():
@@ -24,11 +23,9 @@ def load_feedback() -> dict:
             return json.load(f)
     return {"ratings": [], "summary": {}}
 
-
 def save_feedback(feedback: dict):
     with open(FEEDBACK_PATH, "w") as f:
         json.dump(feedback, f, indent=2, default=str)
-
 
 def add_rating(signal_headline: str, signal_type: str, rating: int, brief_date: str):
     feedback = load_feedback()
@@ -41,59 +38,17 @@ def add_rating(signal_headline: str, signal_type: str, rating: int, brief_date: 
     })
     summary = feedback.get("summary", {})
     if signal_type not in summary:
-        summary[signal_type] = {"total_ratings": 0, "sum": 0, "avg": 5.0}
-    summary[signal_type]["total_ratings"] += 1
-    summary[signal_type]["sum"] += rating
-    summary[signal_type]["avg"] = round(summary[signal_type]["sum"] / summary[signal_type]["total_ratings"], 1)
+        summary[signal_type] = {"count": 0, "total": 0, "avg": 0}
+    summary[signal_type]["count"] += 1
+    summary[signal_type]["total"] += rating
+    summary[signal_type]["avg"] = round(summary[signal_type]["total"] / summary[signal_type]["count"], 2)
     feedback["summary"] = summary
     save_feedback(feedback)
 
 
-def get_feedback_prompt_injection() -> str:
-    feedback = load_feedback()
-    summary = feedback.get("summary", {})
-    if not summary:
-        return ""
-    lines = ["## Feedback-Based Calibration",
-             "Based on user ratings (1=irrelevant, 10=gold):"]
-    for sig_type, data in sorted(summary.items(), key=lambda x: x[1]["avg"], reverse=True):
-        if data["total_ratings"] >= 2:
-            lines.append(f"- {sig_type}: {data['avg']}/10 (n={data['total_ratings']})")
-    recent_low = [r for r in feedback.get("ratings", [])[-50:] if r["rating"] <= 2]
-    if recent_low:
-        lines.append("\nAvoid similar to:")
-        for r in recent_low[-5:]:
-            lines.append(f'- "{r["headline"]}" ({r["rating"]}/10)')
-    recent_high = [r for r in feedback.get("ratings", [])[-50:] if r["rating"] >= 8]
-    if recent_high:
-        lines.append("\nMore like:")
-        for r in recent_high[-5:]:
-            lines.append(f'- "{r["headline"]}" ({r["rating"]}/10)')
-    return "\n".join(lines)
+# ── Shared Nav ───────────────────────────────────────────────────────────
 
-
-# ── Shared Styles & Nav ──────────────────────────────────────────────────
-
-SHARED_STYLES = """
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Georgia', serif; background: #fafafa; color: #1a1a1a; line-height: 1.6; }
-  .container { max-width: 680px; margin: 0 auto; padding: 40px 24px; }
-  .header { border-bottom: 3px solid #1a1a1a; padding-bottom: 16px; margin-bottom: 12px; }
-  .header h1 { font-size: 28px; letter-spacing: -0.5px; }
-  .header .sub { font-size: 14px; color: #666; margin-top: 4px; }
-  .nav { display: flex; gap: 16px; padding: 12px 0 24px 0; border-bottom: 1px solid #e0e0e0; margin-bottom: 28px; font-size: 13px; }
-  .nav a { color: #3D5A80; text-decoration: none; }
-  .nav a:hover { text-decoration: underline; }
-  .nav a.active { color: #1a1a1a; font-weight: bold; text-decoration: none; }
-  .empty { font-size: 14px; color: #999; font-style: italic; }
-  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e0e0e0; font-size: 12px; color: #999; }
-  a { color: #3D5A80; }
-  .btn { display: inline-block; padding: 12px 24px; background: #3D5A80; color: white; border: none;
-         border-radius: 4px; font-size: 15px; cursor: pointer; text-decoration: none; font-family: Georgia, serif; }
-  .btn:hover { background: #2B3A4A; }
-"""
-
-def nav_html(active="brief"):
+def nav_html(active: str) -> str:
     return f"""<div class="nav">
   <a href="/" class="{'active' if active == 'brief' else ''}">The Brief</a>
   <a href="/thesis" class="{'active' if active == 'thesis' else ''}">Living Thesis</a>
@@ -101,6 +56,26 @@ def nav_html(active="brief"):
   <a href="/archive" class="{'active' if active == 'archive' else ''}">Archive</a>
   <a href="/run" class="{'active' if active == 'run' else ''}">Run</a>
 </div>"""
+
+
+# ── Shared Styles ────────────────────────────────────────────────────────
+
+SHARED_STYLES = """
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; color: #1a1a1a; }
+  .container { max-width: 680px; margin: 0 auto; padding: 40px 20px; }
+  .header { margin-bottom: 32px; }
+  .header h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  .header .sub { font-size: 14px; color: #999; }
+  .nav { display: flex; gap: 20px; margin-bottom: 32px; flex-wrap: wrap; }
+  .nav a { font-size: 13px; color: #666; text-decoration: none; }
+  .nav a:hover { color: #1a1a1a; }
+  .nav a.active { color: #1a1a1a; font-weight: 600; }
+  .empty { color: #999; font-size: 14px; font-style: italic; }
+  .footer { margin-top: 60px; font-size: 12px; color: #bbb; text-align: center; }
+  .btn { padding: 10px 20px; background: #1a1a1a; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }
+  .btn:hover { background: #333; }
+"""
 
 
 # ── Brief Template ───────────────────────────────────────────────────────
@@ -462,7 +437,6 @@ def show_brief(brief_date):
     briefs_dir = config.briefs_dir
     available = sorted([f.stem for f in briefs_dir.glob("*.json")])
 
-    # Find prev/next dates
     prev_date = None
     next_date = None
     if brief_date in available:
@@ -472,7 +446,6 @@ def show_brief(brief_date):
         if idx < len(available) - 1:
             next_date = available[idx + 1]
 
-    # Load brief
     brief_path = briefs_dir / f"{brief_date}.json"
     brief = None
     if brief_path.exists():
@@ -480,14 +453,12 @@ def show_brief(brief_date):
             data = json.load(f)
             brief = data.get("brief", data)
 
-    # Load signals
     signals = []
     try:
         signals = state.load_signals(date.fromisoformat(brief_date))
     except ValueError:
         pass
 
-    # Format date
     try:
         d = date.fromisoformat(brief_date)
         date_display = d.strftime("%A, %B %d, %Y")
@@ -501,6 +472,20 @@ def show_brief(brief_date):
                                  current_date=brief_date,
                                  prev_date=prev_date,
                                  next_date=next_date)
+
+
+# ── Brief API ────────────────────────────────────────────────────────────
+
+@app.route("/api/brief/<brief_date>")
+def api_brief(brief_date):
+    brief_path = config.briefs_dir / f"{brief_date}.json"
+    if not brief_path.exists():
+        return jsonify({"error": "Brief not found"}), 404
+    with open(brief_path) as f:
+        data = json.load(f)
+    response = jsonify(data)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    return response
 
 
 # ── Thesis Routes ────────────────────────────────────────────────────────
@@ -762,12 +747,11 @@ def show_book():
 
 
 def _ensure_thesis_seed():
-    """Write seed thesis directly if it doesn't exist on the volume."""
     path = config.data_dir / "thesis" / "current.json"
     if path.exists():
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    seed = {"core_argument":"Hollywood's century-old system for finding and developing intellectual property is breaking down. The traditional pipeline \u2014 books, comics, spec scripts, licensing \u2014 was built for an era of scarcity, when a handful of broadcast slots and theatrical windows could sustain premium pricing on every title. Streaming destroyed that scarcity, demanding volume the old pipeline cannot produce. Simultaneously, the audiences studios need have migrated to platforms with fundamentally better content discovery \u2014 YouTube, TikTok, podcasting \u2014 pulled not by superior content but by superior matching. The only proven mechanism for reaching those audiences in scripted formats is through the creator brands they already trust. This is not a trend. It is a structural reorganization of how entertainment finds its way to people, and the executives and companies who understand it hold an asymmetric advantage.","updated_at":"2026-03-29T18:00:00","version":1,"forces":{"supply_exhaustion":{"summary":"The traditional IP pipeline was designed to feed a scarcity-based system. Streaming inverted this \u2014 platforms need hundreds of titles per year, not dozens. The pipeline built for scarcity cannot produce at volume, and the economics show it: option prices are inflating, conversion rates are declining, and entire categories show signs of exhaustion.","evidence":["Netflix walked away from acquiring WBD's full library \u2014 DC, Harry Potter, HBO catalog \u2014 for $82.7B. Its stock rose. The market priced legacy IP as a harvest asset, not a growth asset.","Paramount-WBD $111B merger is 85% dependent on linear cable profits \u2014 defensive consolidation, not growth investment.","Video game adaptation pipeline reached historic density in 2026 with six theatrical releases, suggesting rapid mining of a previously untapped category.","Sony Pictures Television folded its nonfiction division under scripted leadership, issued buyouts, saw senior departures \u2014 structural contraction in traditional development.","Romantasy publishing hit $600M in sales in 2024 but Hollywood has failed to convert a single major adaptation \u2014 widening gap between publishing success and screen conversion."],"confidence":"high","gaps":["No systematic longitudinal data on book option price inflation","Conversion rate from option to production across IP categories over time","Song/jukebox model depth unclear beyond Bohemian Rhapsody and Rocketman","Board game/toy IP after Barbie \u2014 no second proof point"]},"demand_migration":{"summary":"Audiences aren't choosing creator content over scripted \u2014 they're being captured by platforms with radically better discovery. YouTube, TikTok, and Spotify match individuals to content with precision no streamer replicates. The migration is a discovery problem, not a content preference problem.","evidence":["YouTube commands 11.1% of all TV streaming in the U.S., surpassing Netflix at 8.5%.","Streaming hit 47.5% of total TV viewing in December 2025, but Gen Z daily TV viewing at 36% vs. 73% for Boomers.","YouTube has 1 billion monthly active podcast viewers, 700M hours of living room podcast viewing in October 2025.","72% of podcast listeners prefer shows with video (Cumulus Media).","U.S. ad spending on creators projected at $37B in 2025, up from $13.9B four years prior \u2014 4x broader media growth rate."],"confidence":"high","gaps":["No direct measurement of the algorithmic discovery gap between creator platforms and streamers","Demo-specific migration patterns not tracked longitudinally","Whether creator-branded shows have different retention curves \u2014 no platform publishes this","Whether any streamer uses creator audience data to improve recommendations"]},"discovery_bridge":{"summary":"Creator-branded content is the only proven mechanism for reaching algorithmically-sorted audiences in scripted formats. The creator brand functions as targeting infrastructure \u2014 more precise than ad campaigns and free to the platform.","evidence":["Netflix committed to 50-75 original video podcast shows for 2026, competing with YouTube for casual viewing at $5K-50K per episode vs. $3-10M for scripted.","Netflix pulled Ringer content off YouTube, locked iHeartMedia into exclusivity \u2014 treating creator audiences as proprietary acquisition channels.","Wondery's systematic pipeline: Dirty John, Dr. Death, Shrink Next Door, WeCrashed, Joe vs. Carole.","Audiochuck $250M valuation, Chernin investment, Matt Shanfield hired from Sony to build TV/film division.","57% of new streaming subscribers choosing ad-supported tiers, creating volume demand creator content fills.","Golden Globes introduced first podcast category in 2026."],"confidence":"medium-high","gaps":["No study directly measuring podcast-to-TV audience conversion rates","How development execs at creator-native companies protect brand differently","Economics of creator-driven audience acquisition vs. traditional marketing spend","Whether proof-of-concept model actually reduces production failure rates"]}},"ip_landscape":{"traditional":{"books":{"status":"saturating","notes":"Option prices inflating. Romantasy ($600M sales) failing to convert to screen."},"comics":{"status":"fatigued","notes":"Marvel/DC tentpole fatigue. Independent comics/manga undertapped."},"video_games":{"status":"accelerating","notes":"Six theatrical releases 2026. Last of Us, Fallout, Mario proved it. A24/Garland on Elden Ring."},"songs_jukebox":{"status":"early","notes":"Bohemian Rhapsody ($910M), Rocketman proved model. Pi\u00f1a Colada in development. Vast untapped catalog."},"theater":{"status":"stable","notes":"Hamilton model works but narrow pipeline. Not a volume solution."},"journalism":{"status":"evolved","notes":"Magazine-to-film pipeline absorbed into podcast-driven true crime."},"life_rights":{"status":"heavily_mined","notes":"Podcast layer gives new packaging but same underlying material. True crime fatigue risk."},"board_games_toys":{"status":"uncertain","notes":"Barbie ($1.4B) proved model but no second proof point. Mattel slate unproven."}},"creator_driven":{"podcasts":{"status":"most_mature","notes":"Systematic pipelines at Wondery, Audiochuck, Spotify Studios. Netflix entering with 50-75 shows."},"youtube":{"status":"accelerating","notes":"MrBeast/Netflix model. 11.1% TV streaming. YouTube securing NFL and Oscars (2029)."},"tiktok":{"status":"nascent","notes":"Talent discovery engine but U.S. regulatory uncertainty limits investment."},"newsletters":{"status":"early","notes":"The Optionist, Free Press/Paramount, Fox/Meet Cute. Small but high-value."},"livestreaming":{"status":"emerging","notes":"Markiplier Iron Lung in theaters 2026. A24/Backrooms. Kai Cenat/Kevin Hart film."}}},"development_function":{"summary":"Nobody is writing about what happens inside the companies building the bridge \u2014 what the development executive's job looks like when IP originates from a creator ecosystem. This is the thesis's most original territory.","key_questions":["How does the development role at Audiochuck differ from the same role at a traditional studio?","When the creator IS the brand, how do you protect IP without constraining the relationship that makes it valuable?","How should creator-driven IP be valued when the asset is audience relationship depth?","What creative control structures work when a bad adaptation damages the entire company?","Where do the bridging executives come from and what does their career path look like?"],"tracked_executives":[{"name":"Aaron Hart","company":"Wondery","title":"Head of TV and Film","track_record":"Dirty John, Dr. Death, Shrink Next Door, WeCrashed, Joe vs. Carole"},{"name":"Matt Shanfield","company":"Audiochuck","title":"Head of TV/Film Division","background":"Sony Pictures Television Nonfiction president"},{"name":"Jordan Moblo","company":"Universal Studio Group","title":"EVP Creative Acquisitions & IP Management"},{"name":"Marshall Lewy","company":"Wondery","title":"Chief Content Officer"}]},"claims":[{"id":1,"claim":"The restructuring is driven by three converging forces \u2014 supply exhaustion, demand migration, and the discovery bridge. Their interaction makes the shift structural, not cyclical.","confidence":"high","force":"all"},{"id":2,"claim":"Creator-branded content functions as audience targeting infrastructure. The value is the pre-sorted audience, not the IP.","confidence":"medium-high","force":"discovery_bridge"},{"id":3,"claim":"The development function at creator-native companies is fundamentally different from traditional studios, and building it well is the binding constraint on success.","confidence":"medium","force":"discovery_bridge"},{"id":4,"claim":"Traditional IP pipelines are declining unevenly \u2014 games and songs accelerating, books and comics saturating \u2014 but total volume is insufficient regardless.","confidence":"medium-high","force":"supply_exhaustion"},{"id":5,"claim":"Audience migration is driven by superior algorithmic discovery, not content quality decline. The solution is better discovery, not better content.","confidence":"medium","force":"demand_migration"}],"evidence":[],"book_project":{"status":"advance_offers_received","working_title":"TBD","narrative_arc":"The book tells the story of an industry losing its audience \u2014 not because it forgot how to make great content, but because the infrastructure that connected content to audiences broke, and a new one is being built by people Hollywood doesn't yet recognize as peers.","chapter_outline":[{"chapter":1,"title":"The Pipeline That Built Hollywood","focus":"The century-old system for finding stories. Why scarcity made every bet defensible.","status":"lit_review_complete"},{"chapter":2,"title":"The Exhaustion","focus":"What happens when a scarcity-based pipeline meets streaming-era volume demand.","status":"research_in_progress"},{"chapter":3,"title":"The Great Migration","focus":"Where the audience went and why. The algorithmic discovery gap as root cause.","status":"research_in_progress"},{"chapter":4,"title":"The YouTube Precedent","focus":"Fifteen years of creator ecosystem data. MCN boom and bust. What survived.","status":"lit_review_complete"},{"chapter":5,"title":"The Audio Bridge","focus":"Podcasting as the most mature creator-to-scripted pipeline. Wondery, Audiochuck, Netflix.","status":"research_in_progress"},{"chapter":6,"title":"The New Development Executive","focus":"The job nobody has defined yet. Case studies from Wondery, Audiochuck, UCP Audio.","status":"not_started"},{"chapter":7,"title":"The Discovery Problem","focus":"Why streamers can't find audiences. Creator brands as targeting infrastructure.","status":"research_in_progress"},{"chapter":8,"title":"What Comes Next","focus":"Video games, music catalogs, newsletters, livestreaming. The next wave.","status":"not_started"}]}}
+    seed = {"core_argument":"Hollywood's century-old system for finding and developing intellectual property is breaking down. The traditional pipeline — books, comics, spec scripts, licensing — was built for an era of scarcity, when a handful of broadcast slots and theatrical windows could sustain premium pricing on every title. Streaming destroyed that scarcity, demanding volume the old pipeline cannot produce. Simultaneously, the audiences studios need have migrated to platforms with fundamentally better content discovery — YouTube, TikTok, podcasting — pulled not by superior content but by superior matching. The only proven mechanism for reaching those audiences in scripted formats is through the creator brands they already trust. This is not a trend. It is a structural reorganization of how entertainment finds its way to people, and the executives and companies who understand it hold an asymmetric advantage.","updated_at":"2026-03-29T18:00:00","version":1,"forces":{"supply_exhaustion":{"summary":"The traditional IP pipeline was designed to feed a scarcity-based system. Streaming inverted this — platforms need hundreds of titles per year, not dozens. The pipeline built for scarcity cannot produce at volume, and the economics show it: option prices are inflating, conversion rates are declining, and entire categories show signs of exhaustion.","evidence":["Netflix walked away from acquiring WBD's full library — DC, Harry Potter, HBO catalog — for $82.7B. Its stock rose. The market priced legacy IP as a harvest asset, not a growth asset.","Paramount-WBD $111B merger is 85% dependent on linear cable profits — defensive consolidation, not growth investment.","Video game adaptation pipeline reached historic density in 2026 with six theatrical releases, suggesting rapid mining of a previously untapped category.","Sony Pictures Television folded its nonfiction division under scripted leadership, issued buyouts, saw senior departures — structural contraction in traditional development.","Romantasy publishing hit $600M in sales in 2024 but Hollywood has failed to convert a single major adaptation — widening gap between publishing success and screen conversion."],"confidence":"high","gaps":["No systematic longitudinal data on book option price inflation","Conversion rate from option to production across IP categories over time","Song/jukebox model depth unclear beyond Bohemian Rhapsody and Rocketman","Board game/toy IP after Barbie — no second proof point"]},"demand_migration":{"summary":"Audiences aren't choosing creator content over scripted — they're being captured by platforms with radically better discovery. YouTube, TikTok, and Spotify match individuals to content with precision no streamer replicates. The migration is a discovery problem, not a content preference problem.","evidence":["YouTube commands 11.1% of all TV streaming in the U.S., surpassing Netflix at 8.5%.","Streaming hit 47.5% of total TV viewing in December 2025, but Gen Z daily TV viewing at 36% vs. 73% for Boomers.","YouTube has 1 billion monthly active podcast viewers, 700M hours of living room podcast viewing in October 2025.","72% of podcast listeners prefer shows with video (Cumulus Media).","U.S. ad spending on creators projected at $37B in 2025, up from $13.9B four years prior — 4x broader media growth rate."],"confidence":"high","gaps":["No direct measurement of the algorithmic discovery gap between creator platforms and streamers","Demo-specific migration patterns not tracked longitudinally","Whether creator-branded shows have different retention curves — no platform publishes this","Whether any streamer uses creator audience data to improve recommendations"]},"discovery_bridge":{"summary":"Creator-branded content is the only proven mechanism for reaching algorithmically-sorted audiences in scripted formats. The creator brand functions as targeting infrastructure — more precise than ad campaigns and free to the platform.","evidence":["Netflix committed to 50-75 original video podcast shows for 2026, competing with YouTube for casual viewing at $5K-50K per episode vs. $3-10M for scripted.","Netflix pulled Ringer content off YouTube, locked iHeartMedia into exclusivity — treating creator audiences as proprietary acquisition channels.","Wondery's systematic pipeline: Dirty John, Dr. Death, Shrink Next Door, WeCrashed, Joe vs. Carole.","Audiochuck $250M valuation, Chernin investment, Matt Shanfield hired from Sony to build TV/film division.","57% of new streaming subscribers choosing ad-supported tiers, creating volume demand creator content fills.","Golden Globes introduced first podcast category in 2026."],"confidence":"medium-high","gaps":["No study directly measuring podcast-to-TV audience conversion rates","How development execs at creator-native companies protect brand differently","Economics of creator-driven audience acquisition vs. traditional marketing spend","Whether proof-of-concept model actually reduces production failure rates"]}},"ip_landscape":{"traditional":{"books":{"status":"saturating","notes":"Option prices inflating. Romantasy ($600M sales) failing to convert to screen."},"comics":{"status":"fatigued","notes":"Marvel/DC tentpole fatigue. Independent comics/manga undertapped."},"video_games":{"status":"accelerating","notes":"Six theatrical releases 2026. Last of Us, Fallout, Mario proved it. A24/Garland on Elden Ring."},"songs_jukebox":{"status":"early","notes":"Bohemian Rhapsody ($910M), Rocketman proved model. Piña Colada in development. Vast untapped catalog."},"theater":{"status":"stable","notes":"Hamilton model works but narrow pipeline. Not a volume solution."},"journalism":{"status":"evolved","notes":"Magazine-to-film pipeline absorbed into podcast-driven true crime."},"life_rights":{"status":"heavily_mined","notes":"Podcast layer gives new packaging but same underlying material. True crime fatigue risk."},"board_games_toys":{"status":"uncertain","notes":"Barbie ($1.4B) proved model but no second proof point. Mattel slate unproven."}},"creator_driven":{"podcasts":{"status":"most_mature","notes":"Systematic pipelines at Wondery, Audiochuck, Spotify Studios. Netflix entering with 50-75 shows."},"youtube":{"status":"accelerating","notes":"MrBeast/Netflix model. 11.1% TV streaming. YouTube securing NFL and Oscars (2029)."},"tiktok":{"status":"nascent","notes":"Talent discovery engine but U.S. regulatory uncertainty limits investment."},"newsletters":{"status":"early","notes":"The Optionist, Free Press/Paramount, Fox/Meet Cute. Small but high-value."},"livestreaming":{"status":"emerging","notes":"Markiplier Iron Lung in theaters 2026. A24/Backrooms. Kai Cenat/Kevin Hart film."}}},"development_function":{"summary":"Nobody is writing about what happens inside the companies building the bridge — what the development executive's job looks like when IP originates from a creator ecosystem. This is the thesis's most original territory.","key_questions":["How does the development role at Audiochuck differ from the same role at a traditional studio?","When the creator IS the brand, how do you protect IP without constraining the relationship that makes it valuable?","How should creator-driven IP be valued when the asset is audience relationship depth?","What creative control structures work when a bad adaptation damages the entire company?","Where do the bridging executives come from and what does their career path look like?"],"tracked_executives":[{"name":"Aaron Hart","company":"Wondery","title":"Head of TV and Film","track_record":"Dirty John, Dr. Death, Shrink Next Door, WeCrashed, Joe vs. Carole"},{"name":"Matt Shanfield","company":"Audiochuck","title":"Head of TV/Film Division","background":"Sony Pictures Television Nonfiction president"},{"name":"Jordan Moblo","company":"Universal Studio Group","title":"EVP Creative Acquisitions & IP Management"},{"name":"Marshall Lewy","company":"Wondery","title":"Chief Content Officer"}]},"claims":[{"id":1,"claim":"The restructuring is driven by three converging forces — supply exhaustion, demand migration, and the discovery bridge. Their interaction makes the shift structural, not cyclical.","confidence":"high","force":"all"},{"id":2,"claim":"Creator-branded content functions as audience targeting infrastructure. The value is the pre-sorted audience, not the IP.","confidence":"medium-high","force":"discovery_bridge"},{"id":3,"claim":"The development function at creator-native companies is fundamentally different from traditional studios, and building it well is the binding constraint on success.","confidence":"medium","force":"discovery_bridge"},{"id":4,"claim":"Traditional IP pipelines are declining unevenly — games and songs accelerating, books and comics saturating — but total volume is insufficient regardless.","confidence":"medium-high","force":"supply_exhaustion"},{"id":5,"claim":"Audience migration is driven by superior algorithmic discovery, not content quality decline. The solution is better discovery, not better content.","confidence":"medium","force":"demand_migration"}],"evidence":[],"book_project":{"status":"advance_offers_received","working_title":"TBD","narrative_arc":"The book tells the story of an industry losing its audience — not because it forgot how to make great content, but because the infrastructure that connected content to audiences broke, and a new one is being built by people Hollywood doesn't yet recognize as peers.","chapter_outline":[{"chapter":1,"title":"The Pipeline That Built Hollywood","focus":"The century-old system for finding stories. Why scarcity made every bet defensible.","status":"lit_review_complete"},{"chapter":2,"title":"The Exhaustion","focus":"What happens when a scarcity-based pipeline meets streaming-era volume demand.","status":"research_in_progress"},{"chapter":3,"title":"The Great Migration","focus":"Where the audience went and why. The algorithmic discovery gap as root cause.","status":"research_in_progress"},{"chapter":4,"title":"The YouTube Precedent","focus":"Fifteen years of creator ecosystem data. MCN boom and bust. What survived.","status":"lit_review_complete"},{"chapter":5,"title":"The Audio Bridge","focus":"Podcasting as the most mature creator-to-scripted pipeline. Wondery, Audiochuck, Netflix.","status":"research_in_progress"},{"chapter":6,"title":"The New Development Executive","focus":"The job nobody has defined yet. Case studies from Wondery, Audiochuck, UCP Audio.","status":"not_started"},{"chapter":7,"title":"The Discovery Problem","focus":"Why streamers can't find audiences. Creator brands as targeting infrastructure.","status":"research_in_progress"},{"chapter":8,"title":"What Comes Next","focus":"Video games, music catalogs, newsletters, livestreaming. The next wave.","status":"not_started"}]}}
     with open(path, "w") as f:
         json.dump(seed, f, indent=2, ensure_ascii=False)
     print(f"[Seed] Wrote thesis seed to {path}")
@@ -865,7 +849,6 @@ def start_scheduler():
 # ── Entry Point ──────────────────────────────────────────────────────────
 
 def seed_data():
-    """Copy seed files into the data volume if they don't already exist."""
     import shutil
     seed_dir = Path(__file__).parent / "seed"
     print(f"[Seed] Looking for seed dir at: {seed_dir} (exists: {seed_dir.exists()})")
@@ -889,7 +872,6 @@ def seed_data():
 
 @app.route("/seed")
 def force_seed():
-    """Force re-seed from seed directory, overwriting existing files."""
     import shutil
     seed_dir = Path(__file__).parent / "seed"
     if not seed_dir.exists():
