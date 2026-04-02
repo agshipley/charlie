@@ -1,3 +1,24 @@
 {
-  "sessions": []
+  "sessions": [
+    {
+      "date": "2026-04-02",
+      "questions_engaged": [
+        "Your World — Netflix creator licensing → Audiochuck framing"
+      ],
+      "key_conclusions": [
+        "Netflix creator deals are marketing spend not content spend — size against $2.5B marketing budget not content budget",
+        "Audiochuck per-listener value is higher than iHeart average due to single-host parasocial depth",
+        "Ashley's curatorial authority is the asset, the IP pipeline makes it durable",
+        "Netflix is systematically pulling audiences off YouTube — Audiochuck's Crime Junkie audience is exactly what they're buying",
+        "Sony renewal is an active choice — Katherine Pope retained Liz despite cutting deals and passing on Generational Love"
+      ],
+      "open_questions": [
+        "Actual iHeart deal value — need rep intel to confirm CPM math",
+        "Chernin vs Shanfield alignment on content volume vs brand protection",
+        "What does success look like in year one of the Audiochuck role",
+        "When to have a strategic conversation with Lauren or Katherine about the Sony term"
+      ],
+      "pushed_to_watchlist": []
+    }
+  ]
 }
