@@ -26,6 +26,40 @@
   .brief-link:hover { text-decoration: underline; }
   .date { font-size: 12px; color: #888; }
 
+  .url-section {
+    margin-bottom: 1.5rem;
+    background: #fff;
+    border: 1px solid #e5e2da;
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+  }
+  .url-section h3 { font-size: 13px; font-weight: 500; color: #555; margin-bottom: 8px; }
+  .url-row { display: flex; gap: 8px; align-items: center; }
+  .url-row input {
+    flex: 1;
+    font-size: 13px;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 7px;
+    background: #f9f8f5;
+    color: #1a1a1a;
+    outline: none;
+  }
+  .url-row input:focus { border-color: #b5d4f4; background: #fff; }
+  .url-load {
+    font-size: 12px;
+    padding: 6px 14px;
+    border: 1px solid #b5d4f4;
+    border-radius: 7px;
+    background: transparent;
+    color: #185FA5;
+    cursor: pointer;
+  }
+  .url-load:hover { background: #E6F1FB; }
+  .url-status { font-size: 11px; color: #aaa; margin-top: 6px; }
+  .url-status.loaded { color: #0F6E56; }
+  .url-status.error { color: #c0392b; }
+
   .token-section {
     margin-bottom: 1.5rem;
     background: #fff;
@@ -118,6 +152,14 @@
   .q-actions .btn-discuss:hover { background: #E6F1FB; }
   .q-actions .btn-flagged { border-color: #9FE1CB; color: #0F6E56; cursor: default; }
   .q-actions button:disabled { opacity: 0.55; cursor: default; }
+
+  .loading {
+    font-size: 13px;
+    color: #aaa;
+    font-style: italic;
+    padding: 1rem 0;
+    text-align: center;
+  }
 
   .divider { border: none; border-top: 1px solid #e5e2da; margin: 2rem 0 1.5rem; }
 
@@ -249,9 +291,18 @@
   <div class="header">
     <div class="header-top">
       <h1>The Brief — questions</h1>
-      <a class="brief-link" href="https://charlie-productions.up.railway.app/brief/2026-04-01" target="_blank">view full brief ↗</a>
+      <a class="brief-link" id="brief-link" href="#" target="_blank">view full brief ↗</a>
     </div>
-    <div class="date">Wednesday, April 1, 2026</div>
+    <div class="date" id="brief-date">—</div>
+  </div>
+
+  <div class="url-section">
+    <h3>today's brief</h3>
+    <div class="url-row">
+      <input type="text" id="brief-url" placeholder="https://charlie-productions.up.railway.app/brief/2026-04-02" />
+      <button class="url-load" onclick="loadBrief()">Load</button>
+    </div>
+    <div class="url-status" id="url-status">Paste today's brief URL and hit Load.</div>
   </div>
 
   <div class="token-section">
@@ -263,7 +314,9 @@
     <div class="token-status" id="token-status">Paste your GitHub personal access token to enable pushing to Charlie.</div>
   </div>
 
-  <div class="questions" id="questions-list"></div>
+  <div class="questions" id="questions-list">
+    <div class="loading">Paste a brief URL above and hit Load to get today's questions.</div>
+  </div>
 
   <hr class="divider">
 
@@ -309,36 +362,88 @@ const REPO = "agshipley/charlie";
 const WATCHING_PATH = "context/watching.json";
 const SESSIONS_PATH = "context/sessions.json";
 const API = "https://api.github.com";
+const BRIEF_BASE = "https://charlie-productions.up.railway.app";
 
-const QUESTIONS = [
-  {
-    tier: "signal",
-    tierLabel: "The Signal",
-    headline: "ESPN / NFL Network consolidation",
-    question: "Does Amazon make a play for NBA TV or MLB Network next — and if Amazon absorbs league channels alongside its streaming rights, does it become a de facto sports network that fundamentally changes its competitive positioning against Netflix?",
-    context: "ESPN took operational control of NFL Network and RedZone today. The last standalone league-owned linear property falls. The remaining cable bundle loses its structural justification, accelerating cord-cutting.",
-    watchlistEntry: "Amazon sports network strategy — NBA TV and MLB Network acquisition potential"
-  },
-  {
-    tier: "flag",
-    tierLabel: "Bullshit Flag",
-    headline: "Studio pulls OpenAI investment — April 1",
-    question: "Is this an April Fools' plant? If real, which studio — and does this represent a single company's disillusionment or an industry-wide reassessment of AI video tools on a 2–3 year horizon?",
-    context: "A report surfaced that a major unnamed studio withdrew its OpenAI investment while OpenAI exits video generation. Thin sourcing plus April 1 demands a hard flag before acting.",
-    watchlistEntry: "Studio AI investment reassessment — OpenAI video generation exit and Hollywood response"
-  },
-  {
-    tier: "world",
-    tierLabel: "Your World",
-    headline: "Netflix creator licensing → Audiochuck framing",
-    question: "What is Netflix's implied CPM equivalent per acquired listener across these deals? If creator audience licensing is cheaper than Netflix's standard marketing spend per subscriber, the pricing floor for Audiochuck's negotiating position just moved up.",
-    context: "Netflix's deals with iHeart, Spotify, Ms. Rachel, and Mark Rober are systematic audience acquisition. This maps directly to how Audiochuck's 12M monthly listeners should be framed in the Shanfield conversation.",
-    watchlistEntry: "Netflix creator audience licensing economics — CPM equivalent and pricing implications for podcast IP"
-  }
-];
+const TIER_CONFIG = {
+  tier_1: { key: "signal", label: "The Signal" },
+  tier_2: { key: "flag",   label: "Bullshit Flag" },
+  tier_3: { key: "world",  label: "Your World" }
+};
 
+let QUESTIONS = [];
 let flagged = [];
 let ghToken = "";
+let currentBriefDate = "";
+
+function todayURL() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${BRIEF_BASE}/brief/${y}-${m}-${day}`;
+}
+
+window.onload = function() {
+  document.getElementById("brief-url").value = todayURL();
+};
+
+async function loadBrief() {
+  const url = document.getElementById("brief-url").value.trim();
+  if (!url) return;
+
+  const status = document.getElementById("url-status");
+  status.textContent = "Loading…";
+  status.className = "url-status";
+
+  try {
+    // Extract date from URL
+    const match = url.match(/(\d{4}-\d{2}-\d{2})$/);
+    if (!match) throw new Error("URL must end with a date like 2026-04-02");
+    currentBriefDate = match[1];
+
+    // Fetch the brief JSON from Charlie's API
+    const apiUrl = `${BRIEF_BASE}/api/brief/${currentBriefDate}`;
+    const res = await fetch(apiUrl);
+
+    if (!res.ok) throw new Error(`Brief not found for ${currentBriefDate}`);
+    const data = await res.json();
+    const brief = data.brief || data;
+
+    // Build questions from tiers
+    QUESTIONS = [];
+    for (const [tierKey, config] of Object.entries(TIER_CONFIG)) {
+      const tier = brief[tierKey];
+      if (!tier) continue;
+      QUESTIONS.push({
+        tier: config.key,
+        tierLabel: config.label,
+        headline: tier.headline || "",
+        body: tier.body || "",
+        question: tier.open_question || "",
+        watchlistEntry: (tier.headline || "").substring(0, 80)
+      });
+    }
+
+    if (QUESTIONS.length === 0) throw new Error("No questions found in brief");
+
+    // Update header
+    const d = new Date(currentBriefDate + "T12:00:00");
+    document.getElementById("brief-date").textContent = d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    document.getElementById("brief-link").href = url;
+
+    flagged = [];
+    renderQuestions();
+    renderFlagged();
+    updatePushBtn();
+
+    status.textContent = `✓ Loaded — ${QUESTIONS.length} questions`;
+    status.className = "url-status loaded";
+
+  } catch (err) {
+    status.textContent = `Error: ${err.message}`;
+    status.className = "url-status error";
+  }
+}
 
 function saveToken() {
   const val = document.getElementById("gh-token").value.trim();
@@ -357,6 +462,10 @@ function updatePushBtn() {
 function renderQuestions() {
   const list = document.getElementById("questions-list");
   list.innerHTML = "";
+  if (QUESTIONS.length === 0) {
+    list.innerHTML = `<div class="loading">Paste a brief URL above and hit Load to get today's questions.</div>`;
+    return;
+  }
   QUESTIONS.forEach((q, i) => {
     const isFlagged = flagged.some(f => f.i === i);
     const card = document.createElement("div");
@@ -366,7 +475,7 @@ function renderQuestions() {
         <span class="q-tier tier-${q.tier}">${q.tierLabel}</span>
         <span class="q-headline">${q.headline}</span>
       </div>
-      <div class="q-context">${q.context}</div>
+      <div class="q-context">${q.body}</div>
       <div class="q-text">→ ${q.question}</div>
       <div class="q-actions">
         <button class="btn-discuss" onclick="discuss(${i})">Discuss ↗</button>
@@ -382,17 +491,17 @@ function renderQuestions() {
 
 function discuss(i) {
   const q = QUESTIONS[i];
-  clip(`Let's dig into this question from today's Brief — ${q.tierLabel} (${q.headline}):\n\n"${q.question}"\n\nContext: ${q.context}\n\nBe Socratic — push back and ask me follow-up questions. Unpack the structural forces. And connect it to my projects (Generational Love, Unwell, Fox & Hound, American Proof, Somnia), my Sony first-look deal, and the Audiochuck/Shanfield conversation where relevant.`, "Prompt copied — paste into Claude ↗");
+  clip(`Let's dig into this question from today's Brief — ${q.tierLabel} (${q.headline}):\n\n"${q.question}"\n\nContext: ${q.body}\n\nBe Socratic — push back and ask me follow-up questions. Unpack the structural forces. And connect it to my projects (Generational Love, Unwell, Fox & Hound, American Proof, Somnia), my Sony first-look deal, and the Audiochuck/Shanfield conversation where relevant.`, "Prompt copied — paste into Claude ↗");
 }
 
 function unpack(i) {
   const q = QUESTIONS[i];
-  clip(`Unpack the context behind this question from today's Brief — ${q.tierLabel} (${q.headline}):\n\n"${q.question}"\n\nContext: ${q.context}\n\nWhat are the full structural forces at play and what would it mean if the answer goes one way vs. the other?`, "Prompt copied — paste into Claude ↗");
+  clip(`Unpack the context behind this question from today's Brief — ${q.tierLabel} (${q.headline}):\n\n"${q.question}"\n\nContext: ${q.body}\n\nWhat are the full structural forces at play and what would it mean if the answer goes one way vs. the other?`, "Prompt copied — paste into Claude ↗");
 }
 
 function connect(i) {
   const q = QUESTIONS[i];
-  clip(`Connect this question from today's Brief to my specific situation — ${q.tierLabel} (${q.headline}):\n\n"${q.question}"\n\nContext: ${q.context}\n\nGiven my active projects (Generational Love, Unwell, Fox & Hound, American Proof, Somnia), Sony first-look deal, and the Audiochuck/Shanfield conversation — how does this intersect with where I am right now?`, "Prompt copied — paste into Claude ↗");
+  clip(`Connect this question from today's Brief to my specific situation — ${q.tierLabel} (${q.headline}):\n\n"${q.question}"\n\nContext: ${q.body}\n\nGiven my active projects (Generational Love, Unwell, Fox & Hound, American Proof, Somnia), Sony first-look deal, and the Audiochuck/Shanfield conversation — how does this intersect with where I am right now?`, "Prompt copied — paste into Claude ↗");
 }
 
 function flagItem(i) {
@@ -606,9 +715,6 @@ function toast(msg) {
   clearTimeout(t._t);
   t._t = setTimeout(() => t.style.opacity = "0", 2400);
 }
-
-renderQuestions();
-renderFlagged();
 </script>
 </body>
 </html>
