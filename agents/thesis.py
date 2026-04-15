@@ -38,12 +38,31 @@ def run_thesis(days_back: int = 7) -> dict:
     recent_signals = state.load_recent_signals(days=days_back)
     print(f"[Thesis] Loaded {len(recent_signals)} signals from last {days_back} days")
 
+    # Load recent session data
+    sessions = state.load_sessions(days_back=days_back)
+    print(f"[Thesis] Loaded {len(sessions)} session entries from last {days_back} days")
+
     if not recent_signals and not thesis:
         print("[Thesis] No signals and no existing thesis. Nothing to synthesize.")
         return {}
 
     # Build the prompt
     system_prompt = build_thesis_prompt(thesis, recent_signals)
+
+    # Build session block for user message
+    session_block = ""
+    if sessions:
+        session_lines = [
+            "\n## User Engagement Signals (This Week)",
+            "The following insights emerged from the end user's engagement with daily briefs.",
+            'Treat "challenges" dispositions as high-priority investigation targets.',
+            'Treat "new_signal" dispositions as potential thesis extensions.',
+        ]
+        for s in sessions:
+            session_lines.append(
+                f"- [{s['disposition'].upper()}] [{s['thesis_force']}] {s['signal_category']}: {s['insight']} (confidence: {s['confidence']})"
+            )
+        session_block = "\n".join(session_lines)
 
     user_message = f"""Review the {len(recent_signals)} signals from the past {days_back} days
 against the current thesis state.
@@ -54,7 +73,7 @@ what should be extended, what should be revised, and what new patterns are emerg
 Every proposed change must cite specific signals as evidence.
 
 If this is the initial thesis, propose a structured starting framework based on
-the available signals and the thesis subject description in your instructions."""
+the available signals and the thesis subject description in your instructions.{session_block}"""
 
     # Use Opus for deep reasoning
     print("[Thesis] Running synthesis...")

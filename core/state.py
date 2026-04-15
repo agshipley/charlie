@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from pathlib import Path
 from .config import config
 
@@ -115,6 +115,30 @@ class StateManager:
         watchlist["updated_at"] = datetime.now().isoformat()
         self._write(path, watchlist)
         return path
+
+    # ── Sessions ─────────────────────────────────────────────────────────
+
+    def load_sessions(self, days_back: int = 14) -> list[dict]:
+        """Load recent session entries from data/sessions.json."""
+        path = config.data_dir / "sessions.json"
+        if not path.exists():
+            return []
+        with open(path) as f:
+            data = json.load(f)
+        cutoff = (date.today() - timedelta(days=days_back)).isoformat()
+        return [s for s in data.get("sessions", []) if s["brief_date"] >= cutoff]
+
+    def append_session(self, entry: dict):
+        """Append a session entry to data/sessions.json."""
+        path = config.data_dir / "sessions.json"
+        if path.exists():
+            with open(path) as f:
+                data = json.load(f)
+        else:
+            data = {"sessions": []}
+        data["sessions"].append(entry)
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2, default=str)
 
     # ── Context (Liz) ────────────────────────────────────────────────────
 

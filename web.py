@@ -53,6 +53,7 @@ def nav_html(active: str) -> str:
   <a href="/" class="{'active' if active == 'brief' else ''}">The Brief</a>
   <a href="/thesis" class="{'active' if active == 'thesis' else ''}">Living Thesis</a>
   <a href="/book" class="{'active' if active == 'book' else ''}">Book Project</a>
+  <a href="/companion" class="{'active' if active == 'companion' else ''}">Companion</a>
   <a href="/archive" class="{'active' if active == 'archive' else ''}">Archive</a>
   <a href="/run" class="{'active' if active == 'run' else ''}">Run</a>
 </div>"""
@@ -380,6 +381,182 @@ RUNNING_TEMPLATE = """<!DOCTYPE html>
 </html>"""
 
 
+# ── Companion Template ───────────────────────────────────────────────────
+
+COMPANION_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charlie — Companion</title>
+<style>
+  """ + SHARED_STYLES + """
+  .companion-intro { font-size: 14px; color: #666; margin-bottom: 28px; line-height: 1.6; }
+  .tier-block { margin-bottom: 40px; padding: 24px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
+  .tier-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #999; margin-bottom: 8px; }
+  .tier-headline { font-size: 18px; font-weight: bold; color: #1a1a1a; margin-bottom: 10px; line-height: 1.4; }
+  .tier-question { font-size: 14px; color: #666; font-style: italic; padding-left: 16px; border-left: 2px solid #ddd; margin-bottom: 24px; }
+  .field-label { font-size: 13px; color: #444; margin-bottom: 6px; display: block; font-weight: bold; }
+  .field-hint { font-size: 12px; color: #999; margin-bottom: 8px; display: block; }
+  textarea { width: 100%; min-height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;
+             font-family: Georgia, serif; font-size: 14px; color: #1a1a1a; resize: vertical; }
+  textarea:focus { outline: none; border-color: #3D5A80; }
+  .radio-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+  .radio-group label { font-size: 14px; color: #333; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  .radio-group input[type="radio"] { accent-color: #3D5A80; }
+  select { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px;
+           font-family: Georgia, serif; font-size: 14px; color: #1a1a1a; background: white; }
+  select:focus { outline: none; border-color: #3D5A80; }
+  input[type="text"] { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px;
+                       font-family: Georgia, serif; font-size: 14px; color: #1a1a1a; }
+  input[type="text"]:focus { outline: none; border-color: #3D5A80; }
+  .field-group { margin-bottom: 20px; }
+  .confidence-row { display: flex; gap: 20px; }
+  .confidence-row label { font-size: 14px; color: #333; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .submit-btn { margin-top: 8px; padding: 10px 22px; background: #3D5A80; color: white; border: none;
+                border-radius: 4px; font-size: 14px; cursor: pointer; font-family: Georgia, serif; }
+  .submit-btn:hover { background: #2B3A4A; }
+  .submit-btn:disabled { background: #aaa; cursor: default; }
+  .confirmation { margin-top: 14px; padding: 10px 14px; background: #d5f5e3; color: #1a7a45;
+                  border-radius: 4px; font-size: 14px; display: none; }
+  .error-msg { margin-top: 14px; padding: 10px 14px; background: #fde8e8; color: #c0392b;
+               border-radius: 4px; font-size: 14px; display: none; }
+  .empty-tier { font-size: 14px; color: #999; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Companion</h1>
+    <div class="sub">{{ date_display }}</div>
+  </div>
+
+  {{ nav | safe }}
+
+  {% if not brief %}
+  <p class="empty">No brief available to respond to. <a href="/run">Run The Brief now →</a></p>
+  {% else %}
+  <p class="companion-intro">Respond to today's open questions. Your insights calibrate what Charlie surfaces next.</p>
+
+  {% set tier_defs = [
+    ('tier_1', 'The Signal', brief.get('tier_1')),
+    ('tier_2', 'The Bullshit Flag', brief.get('tier_2')),
+    ('tier_3', 'Your World', brief.get('tier_3'))
+  ] %}
+
+  {% for tier_key, tier_label, tier in tier_defs %}
+  <div class="tier-block">
+    <div class="tier-label">{{ tier_label }}</div>
+    {% if tier %}
+    <div class="tier-headline">{{ tier.headline }}</div>
+    {% if tier.open_question %}
+    <div class="tier-question">→ {{ tier.open_question }}</div>
+    {% endif %}
+
+    <div class="field-group">
+      <label class="field-label" for="insight-{{ tier_key }}">Your response</label>
+      <textarea id="insight-{{ tier_key }}" placeholder="What does this tell you? What pattern does it fit or break?"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">This insight…</label>
+      <div class="radio-group">
+        <label><input type="radio" name="disposition-{{ tier_key }}" value="reinforces"> Reinforces the thesis</label>
+        <label><input type="radio" name="disposition-{{ tier_key }}" value="challenges"> Challenges the thesis</label>
+        <label><input type="radio" name="disposition-{{ tier_key }}" value="new_signal"> Surfaces something new</label>
+        <label><input type="radio" name="disposition-{{ tier_key }}" value="tangential"> Tangential / not thesis-related</label>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label" for="force-{{ tier_key }}">Thesis force</label>
+      <select id="force-{{ tier_key }}">
+        <option value="supply_exhaustion">Supply Exhaustion</option>
+        <option value="demand_migration">Demand Migration</option>
+        <option value="discovery_bridge">Discovery Bridge</option>
+        <option value="general">General</option>
+      </select>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label" for="category-{{ tier_key }}">Signal category</label>
+      <span class="field-hint">Abstract label — e.g. "platform_exclusivity_strategy", "creator_brand_valuation"</span>
+      <input type="text" id="category-{{ tier_key }}" placeholder="e.g. platform_exclusivity_strategy">
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Confidence</label>
+      <div class="confidence-row">
+        <label><input type="radio" name="confidence-{{ tier_key }}" value="high"> High</label>
+        <label><input type="radio" name="confidence-{{ tier_key }}" value="medium" checked> Medium</label>
+        <label><input type="radio" name="confidence-{{ tier_key }}" value="low"> Low</label>
+      </div>
+    </div>
+
+    <button class="submit-btn" onclick="submitTier('{{ tier_key }}', '{{ tier.open_question | default('') | e }}', '{{ brief_date }}')">Submit</button>
+    <div class="confirmation" id="confirm-{{ tier_key }}">Saved. Thank you.</div>
+    <div class="error-msg" id="error-{{ tier_key }}">Something went wrong. Please try again.</div>
+
+    {% else %}
+    <p class="empty-tier">Nothing qualified today.</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <div class="footer">Charlie — Entertainment Industry Intelligence</div>
+</div>
+
+<script>
+function submitTier(tier, question, briefDate) {
+  const insight = document.getElementById('insight-' + tier).value.trim();
+  if (!insight) { alert('Please enter your response before submitting.'); return; }
+
+  const dispositionEl = document.querySelector('input[name="disposition-' + tier + '"]:checked');
+  if (!dispositionEl) { alert('Please select a disposition before submitting.'); return; }
+
+  const force = document.getElementById('force-' + tier).value;
+  const category = document.getElementById('category-' + tier).value.trim();
+  const confidenceEl = document.querySelector('input[name="confidence-' + tier + '"]:checked');
+  const confidence = confidenceEl ? confidenceEl.value : 'medium';
+
+  const btn = document.querySelector('.tier-block .submit-btn[onclick*="' + tier + '"]');
+  if (btn) btn.disabled = true;
+
+  fetch('/api/companion/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      brief_date: briefDate,
+      tier: tier,
+      question: question,
+      disposition: dispositionEl.value,
+      thesis_force: force,
+      signal_category: category,
+      insight: insight,
+      confidence: confidence,
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'ok') {
+      document.getElementById('confirm-' + tier).style.display = 'block';
+      document.getElementById('error-' + tier).style.display = 'none';
+    } else {
+      document.getElementById('error-' + tier).style.display = 'block';
+      if (btn) btn.disabled = false;
+    }
+  })
+  .catch(() => {
+    document.getElementById('error-' + tier).style.display = 'block';
+    if (btn) btn.disabled = false;
+  });
+}
+</script>
+</body>
+</html>"""
+
+
 # ── Routes ───────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -430,6 +607,67 @@ def archive():
         briefs_summary.append(entry)
 
     return render_template_string(ARCHIVE_TEMPLATE, briefs=briefs_summary, nav=nav_html("archive"))
+
+
+@app.route("/companion")
+def companion():
+    briefs_dir = config.briefs_dir
+    available = sorted([f.stem for f in briefs_dir.glob("*.json")], reverse=True)
+
+    brief = None
+    brief_date = ""
+    date_display = "No briefs yet"
+
+    if available:
+        brief_date = available[0]
+        brief_path = briefs_dir / f"{brief_date}.json"
+        try:
+            with open(brief_path) as f:
+                data = json.load(f)
+                brief = data.get("brief", data)
+        except (json.JSONDecodeError, KeyError):
+            pass
+        try:
+            d = date.fromisoformat(brief_date)
+            date_display = d.strftime("%A, %B %d, %Y")
+        except ValueError:
+            date_display = brief_date
+
+    return render_template_string(COMPANION_TEMPLATE,
+                                  brief=brief,
+                                  brief_date=brief_date,
+                                  date_display=date_display,
+                                  nav=nav_html("companion"))
+
+
+@app.route("/api/companion/session", methods=["POST"])
+def submit_session():
+    data = request.json
+    base_id = f"s_{data['brief_date'].replace('-', '')}_{data['tier']}"
+
+    # Ensure unique ID by checking existing sessions
+    existing = state.load_sessions(days_back=60)
+    existing_ids = {s["id"] for s in existing}
+    entry_id = base_id
+    suffix_ord = ord('b')
+    while entry_id in existing_ids:
+        entry_id = f"{base_id}_{chr(suffix_ord)}"
+        suffix_ord += 1
+
+    entry = {
+        "id": entry_id,
+        "brief_date": data["brief_date"],
+        "session_date": datetime.now().isoformat(),
+        "tier": data["tier"],
+        "question": data.get("question", ""),
+        "disposition": data["disposition"],
+        "thesis_force": data["thesis_force"],
+        "signal_category": data.get("signal_category", ""),
+        "insight": data["insight"],
+        "confidence": data.get("confidence", "medium"),
+    }
+    state.append_session(entry)
+    return jsonify({"status": "ok", "id": entry_id})
 
 
 @app.route("/brief/<brief_date>")

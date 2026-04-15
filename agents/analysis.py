@@ -15,6 +15,40 @@ from core.state import StateManager
 from core.prompts import build_analysis_prompt
 
 
+def get_session_prompt_injection() -> str:
+    """Build a calibration block from recent qualitative session data."""
+    state = StateManager()
+    sessions = state.load_sessions(days_back=14)
+    if not sessions:
+        return ""
+
+    lines = [
+        "## Session-Based Calibration",
+        "Recent qualitative engagement from the end user:",
+    ]
+
+    reinforcing = [s for s in sessions if s["disposition"] == "reinforces"]
+    challenging = [s for s in sessions if s["disposition"] == "challenges"]
+    new_signals = [s for s in sessions if s["disposition"] == "new_signal"]
+
+    if reinforcing:
+        lines.append("\nReinforcing signals (weight these categories higher):")
+        for s in reinforcing[-5:]:
+            lines.append(f"- [{s['thesis_force']}] {s['signal_category']}: {s['insight']}")
+
+    if challenging:
+        lines.append("\nChallenging signals (actively seek counter-evidence in these areas):")
+        for s in challenging[-5:]:
+            lines.append(f"- [{s['thesis_force']}] {s['signal_category']}: {s['insight']}")
+
+    if new_signals:
+        lines.append("\nNew signal categories to watch:")
+        for s in new_signals[-5:]:
+            lines.append(f"- [{s['thesis_force']}] {s['signal_category']}: {s['insight']}")
+
+    return "\n".join(lines)
+
+
 def run_analysis(signals: list[dict] | None = None, run_date: date | None = None) -> dict:
     """
     Execute an analysis run.
@@ -41,6 +75,10 @@ def run_analysis(signals: list[dict] | None = None, run_date: date | None = None
 
     # Build the prompt
     system_prompt = build_analysis_prompt(context, thesis)
+    session_injection = get_session_prompt_injection()
+    if session_injection:
+        print(f"[Analysis] Injecting session calibration ({len(session_injection)} chars)")
+        system_prompt += "\n\n" + session_injection
 
     # Format signals for the agent
     signals_text = json.dumps(signals, indent=2)
