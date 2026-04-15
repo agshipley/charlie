@@ -502,6 +502,49 @@ COMPANION_TEMPLATE = """<!DOCTYPE html>
     {% endif %}
   </div>
   {% endfor %}
+
+  {% if brief %}
+  <div class="tier-block" style="border-top: 2px solid #1a1a1a; margin-top: 8px;">
+    <div class="tier-label" style="margin-bottom: 12px;">Brain Dump</div>
+    <p style="font-size: 14px; color: #666; margin-bottom: 20px; line-height: 1.6;">Anything on your mind that doesn't fit the tiers — patterns, hunches, things you're noticing. Write freely.</p>
+
+    <div class="field-group">
+      <textarea id="insight-freeform" rows="6" placeholder="What are you seeing? What keeps coming up?"></textarea>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">This relates to the thesis by…</label>
+      <div class="radio-group">
+        <label><input type="radio" name="disposition-freeform" value="reinforces"> Reinforcing it</label>
+        <label><input type="radio" name="disposition-freeform" value="challenges"> Challenging it</label>
+        <label><input type="radio" name="disposition-freeform" value="new_signal"> Surfacing something new</label>
+        <label><input type="radio" name="disposition-freeform" value="tangential"> Tangential / general observation</label>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label" for="force-freeform">Thesis force</label>
+      <select id="force-freeform">
+        <option value="supply_exhaustion">Supply Exhaustion</option>
+        <option value="demand_migration">Demand Migration</option>
+        <option value="discovery_bridge">Discovery Bridge</option>
+        <option value="general" selected>General</option>
+      </select>
+    </div>
+
+    <div class="field-group">
+      <label class="field-label">Confidence</label>
+      <div class="confidence-row">
+        <label><input type="radio" name="confidence-freeform" value="high"> High</label>
+        <label><input type="radio" name="confidence-freeform" value="medium" checked> Medium</label>
+        <label><input type="radio" name="confidence-freeform" value="low"> Low</label>
+      </div>
+    </div>
+
+    <button class="submit-btn" onclick="submitFreeform('{{ brief_date }}')">Submit</button>
+    <div class="confirmation" id="confirm-freeform">Saved. Thank you.</div>
+    <div class="error-msg" id="error-freeform">Something went wrong. Please try again.</div>
+  </div>
   {% endif %}
 
   <div class="footer">Charlie — Entertainment Industry Intelligence</div>
@@ -549,6 +592,50 @@ function submitTier(tier, question, briefDate) {
   })
   .catch(() => {
     document.getElementById('error-' + tier).style.display = 'block';
+    if (btn) btn.disabled = false;
+  });
+}
+
+function submitFreeform(briefDate) {
+  const insight = document.getElementById('insight-freeform').value.trim();
+  if (!insight) { alert('Please enter something before submitting.'); return; }
+
+  const dispositionEl = document.querySelector('input[name="disposition-freeform"]:checked');
+  if (!dispositionEl) { alert('Please select a disposition before submitting.'); return; }
+
+  const force = document.getElementById('force-freeform').value;
+  const confidenceEl = document.querySelector('input[name="confidence-freeform"]:checked');
+  const confidence = confidenceEl ? confidenceEl.value : 'medium';
+
+  const btn = document.querySelector('.submit-btn[onclick*="submitFreeform"]');
+  if (btn) btn.disabled = true;
+
+  fetch('/api/companion/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      brief_date: briefDate,
+      tier: 'freeform',
+      question: null,
+      disposition: dispositionEl.value,
+      thesis_force: force,
+      signal_category: '',
+      insight: insight,
+      confidence: confidence,
+    })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'ok') {
+      document.getElementById('confirm-freeform').style.display = 'block';
+      document.getElementById('error-freeform').style.display = 'none';
+    } else {
+      document.getElementById('error-freeform').style.display = 'block';
+      if (btn) btn.disabled = false;
+    }
+  })
+  .catch(() => {
+    document.getElementById('error-freeform').style.display = 'block';
     if (btn) btn.disabled = false;
   });
 }
@@ -643,22 +730,32 @@ def companion():
 @app.route("/api/companion/session", methods=["POST"])
 def submit_session():
     data = request.json
-    base_id = f"s_{data['brief_date'].replace('-', '')}_{data['tier']}"
+    tier = data["tier"]
+    date_str = data["brief_date"].replace("-", "")
+    base_id = f"s_{date_str}_{tier}"
 
-    # Ensure unique ID by checking existing sessions
+    # Ensure unique ID. Freeform entries always use a letter suffix (a, b, c…).
+    # Tier entries use the base ID first, then _b, _c… on collision.
     existing = state.load_sessions(days_back=60)
     existing_ids = {s["id"] for s in existing}
-    entry_id = base_id
-    suffix_ord = ord('b')
-    while entry_id in existing_ids:
+    if tier == "freeform":
+        suffix_ord = ord("a")
         entry_id = f"{base_id}_{chr(suffix_ord)}"
-        suffix_ord += 1
+        while entry_id in existing_ids:
+            suffix_ord += 1
+            entry_id = f"{base_id}_{chr(suffix_ord)}"
+    else:
+        entry_id = base_id
+        suffix_ord = ord("b")
+        while entry_id in existing_ids:
+            entry_id = f"{base_id}_{chr(suffix_ord)}"
+            suffix_ord += 1
 
     entry = {
         "id": entry_id,
         "brief_date": data["brief_date"],
         "session_date": datetime.now().isoformat(),
-        "tier": data["tier"],
+        "tier": tier,
         "question": data.get("question", ""),
         "disposition": data["disposition"],
         "thesis_force": data["thesis_force"],

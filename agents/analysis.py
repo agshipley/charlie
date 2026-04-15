@@ -27,9 +27,12 @@ def get_session_prompt_injection() -> str:
         "Recent qualitative engagement from the end user:",
     ]
 
-    reinforcing = [s for s in sessions if s["disposition"] == "reinforces"]
-    challenging = [s for s in sessions if s["disposition"] == "challenges"]
-    new_signals = [s for s in sessions if s["disposition"] == "new_signal"]
+    tier_sessions = [s for s in sessions if s["tier"] != "freeform"]
+    freeform_sessions = [s for s in sessions if s["tier"] == "freeform"]
+
+    reinforcing = [s for s in tier_sessions if s["disposition"] == "reinforces"]
+    challenging = [s for s in tier_sessions if s["disposition"] == "challenges"]
+    new_signals = [s for s in tier_sessions if s["disposition"] == "new_signal"]
 
     if reinforcing:
         lines.append("\nReinforcing signals (weight these categories higher):")
@@ -45,6 +48,12 @@ def get_session_prompt_injection() -> str:
         lines.append("\nNew signal categories to watch:")
         for s in new_signals[-5:]:
             lines.append(f"- [{s['thesis_force']}] {s['signal_category']}: {s['insight']}")
+
+    if freeform_sessions:
+        lines.append("\n## General Observations")
+        lines.append("Extract category-level patterns from these observations. Do not use specific entity names or project titles as search directives.")
+        for s in freeform_sessions[-5:]:
+            lines.append(f"- [{s['thesis_force']}] [{s['disposition']}] {s['insight']} (confidence: {s['confidence']})")
 
     return "\n".join(lines)
 
