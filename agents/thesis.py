@@ -7,7 +7,7 @@ against the current thesis, and produces update proposals for Andrew to review.
 
 import json
 import re
-from datetime import date
+from datetime import date, datetime
 
 from core.client import call_agent
 from core.config import config
@@ -106,6 +106,133 @@ the available signals and the thesis subject description in your instructions.{s
         print("[Thesis] ⚠️  Proposal requires Andrew's review before application.")
 
     return proposal
+
+
+def refine_proposal(proposal: dict, thesis: dict) -> dict:
+    """
+    Run an Opus refinement pass on a proposal using Liz's annotations.
+
+    Takes the current proposal (with flags and annotations), the current thesis
+    state, and produces a revised proposal incorporating feedback.
+    """
+    annotated_items = []
+    for key in ("extensions", "revisions", "new_patterns"):
+        for item in proposal.get(key, []):
+            if item.get("annotation") or item.get("flag"):
+                annotated_items.append({
+                    "section": key,
+                    "id": item["id"],
+                    "flag": item.get("flag"),
+                    "annotation": item.get("annotation", ""),
+                    "current_content": item,
+                })
+
+    if not annotated_items:
+        return proposal
+
+    system_prompt = f"""You are the thesis synthesizer for Charlie, an entertainment
+industry intelligence system. You are refining a thesis update proposal based on
+editorial feedback from the domain expert (Liz Varner).
+
+Current thesis state:
+{json.dumps(thesis, indent=2)}
+
+Your job:
+- Items flagged "accept": keep as-is
+- Items flagged "needs_revision": revise based on the annotation
+- Items flagged "reject": remove from the proposal
+- Items with annotations but no flag: use the annotation to improve the item
+- Preserve item IDs across revisions so the reviewer can track changes
+- Do not introduce new items unless an annotation specifically requests one
+- Maintain the same JSON structure as the input proposal
+
+Respond with the complete revised proposal as a JSON block."""
+
+    user_message = f"""Here is the current proposal (iteration {proposal['iteration']}):
+{json.dumps(proposal, indent=2)}
+
+The reviewer provided the following feedback:
+{json.dumps(annotated_items, indent=2)}
+
+Produce the revised proposal incorporating this feedback. Return valid JSON only."""
+
+    print(f"[Thesis] Refining proposal (iteration {proposal['iteration']})...")
+    result = call_agent(
+        system_prompt=system_prompt,
+        user_message=user_message,
+        model=config.model_deep,
+    )
+
+    revised = _parse_proposal(result["text"])
+
+    if revised:
+        revised["iteration"] = proposal["iteration"] + 1
+        revised["max_iterations"] = proposal.get("max_iterations", 5)
+        revised["status"] = "in_review"
+        revised["history"] = proposal.get("history", []) + [{
+            "iteration": revised["iteration"],
+            "type": "refinement",
+            "timestamp": datetime.now().isoformat(),
+            "annotations_count": len(annotated_items),
+        }]
+        for key in ("extensions", "revisions", "new_patterns"):
+            for item in revised.get(key, []):
+                item.setdefault("flag", None)
+                item.setdefault("annotation", None)
+        return revised
+
+    return proposal
+
+
+def publish_proposal(proposal: dict) -> bool:
+    """
+    Apply a reviewed proposal to current.json.
+
+    Items flagged 'reject' or 'needs_revision' are skipped.
+    Everything else is applied.
+    """
+    state = StateManager()
+    current_thesis = state.load_thesis()
+
+    if not current_thesis:
+        print("[Thesis] No existing thesis to update.")
+        return False
+
+    applied = {"extensions": 0, "revisions": 0, "new_patterns": 0}
+
+    for ext in proposal.get("extensions", []):
+        if ext.get("flag") not in ("reject", "needs_revision"):
+            current_thesis.setdefault("claims", []).append({
+                "claim": ext["claim"],
+                "confidence": ext.get("confidence", "medium"),
+                "force": ext.get("force", "general"),
+            })
+            applied["extensions"] += 1
+
+    for rev in proposal.get("revisions", []):
+        if rev.get("flag") not in ("reject", "needs_revision"):
+            claim_id = rev.get("claim_id")
+            claims = current_thesis.get("claims", [])
+            if claim_id is not None and claim_id < len(claims):
+                claims[claim_id]["claim"] = rev["revised_claim"]
+                if rev.get("confidence"):
+                    claims[claim_id]["confidence"] = rev["confidence"]
+                applied["revisions"] += 1
+
+    for pat in proposal.get("new_patterns", []):
+        if pat.get("flag") not in ("reject", "needs_revision"):
+            force_key = pat.get("suggested_force", "discovery_bridge")
+            force = current_thesis.get("forces", {}).get(force_key, {})
+            force.setdefault("evidence", []).append(pat["pattern"])
+            applied["new_patterns"] += 1
+
+    current_thesis["version"] = current_thesis.get("version", 0) + 1
+    current_thesis["updated_at"] = datetime.now().isoformat()
+
+    state.save_thesis(current_thesis)
+    print(f"[Thesis] Published: {applied['extensions']} extensions, "
+          f"{applied['revisions']} revisions, {applied['new_patterns']} new patterns")
+    return True
 
 
 def apply_proposal(proposal_path: str):

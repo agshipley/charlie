@@ -824,6 +824,252 @@ def api_brief(brief_date):
 
 # ── Thesis Routes ────────────────────────────────────────────────────────
 
+REVIEW_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charlie — Thesis Review</title>
+<style>
+  """ + SHARED_STYLES + """
+  .iteration-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .iteration-label { font-size: 13px; color: #666; }
+  .iteration-dots { display: flex; gap: 6px; }
+  .dot { font-size: 16px; color: #e0e0e0; }
+  .dot.filled { color: #1a1a1a; }
+  .summary-block { padding: 20px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; margin-bottom: 32px; }
+  .summary-block p { font-size: 15px; color: #333; line-height: 1.6; }
+  .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #999; margin-bottom: 12px; margin-top: 32px; }
+  .proposal-card { margin-bottom: 20px; padding: 20px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
+  .item-id { font-size: 11px; color: #bbb; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .item-claim { font-size: 15px; color: #1a1a1a; line-height: 1.5; margin-bottom: 10px; }
+  .item-original { font-size: 13px; color: #999; font-style: italic; margin-bottom: 6px; padding-left: 12px; border-left: 2px solid #e0e0e0; }
+  .item-revised { font-size: 14px; color: #1a1a1a; margin-bottom: 10px; padding-left: 12px; border-left: 2px solid #3D5A80; }
+  .item-meta { font-size: 12px; color: #999; margin-bottom: 6px; }
+  .item-evidence { font-size: 12px; color: #aaa; margin-bottom: 14px; }
+  .flag-row { display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap; }
+  .flag-row label { font-size: 13px; color: #444; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .flag-row input[type="radio"] { accent-color: #3D5A80; }
+  .annotation-field { width: 100%; padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 4px;
+                      font-family: Georgia, serif; font-size: 14px; color: #1a1a1a; resize: vertical;
+                      min-height: 60px; margin-top: 4px; }
+  .annotation-field:focus { outline: none; border-color: #3D5A80; }
+  .action-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 40px;
+                padding: 20px 0; border-top: 2px solid #e0e0e0; }
+  .action-right { display: flex; gap: 12px; }
+  .btn-refine { background: #1a1a1a; color: white; padding: 10px 22px; border: none; border-radius: 4px;
+                font-size: 14px; cursor: pointer; font-family: Georgia, serif; }
+  .btn-refine:hover:not(:disabled) { background: #333; }
+  .btn-refine:disabled { background: #ccc; cursor: default; color: #999; }
+  .btn-discard { background: white; color: #c0392b; border: 1px solid #c0392b; padding: 10px 20px;
+                 border-radius: 4px; font-size: 14px; cursor: pointer; font-family: Georgia, serif; }
+  .btn-discard:hover { background: #fde8e8; }
+  .btn-publish { background: #27ae60; color: white; border: none; padding: 10px 22px;
+                 border-radius: 4px; font-size: 14px; cursor: pointer; font-family: Georgia, serif; }
+  .btn-publish:hover { background: #1e8449; }
+  .loading-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                     background: rgba(255,255,255,0.92); z-index: 100;
+                     align-items: center; justify-content: center; flex-direction: column; }
+  .loading-msg { font-size: 17px; color: #1a1a1a; text-align: center; line-height: 2; }
+  .status-published { padding: 16px 20px; background: #d5f5e3; color: #1a7a45; border-radius: 6px;
+                      font-size: 14px; margin-bottom: 24px; }
+  .status-discarded { padding: 16px 20px; background: #f5f5f5; color: #999; border-radius: 6px;
+                      font-size: 14px; margin-bottom: 24px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Thesis Review</h1>
+    <div class="sub">{{ proposal_date_display }}</div>
+  </div>
+
+  {{ nav | safe }}
+
+  {% if not proposal %}
+  <p class="empty">No proposal available. The thesis synthesizer runs on Monday mornings.</p>
+
+  {% elif proposal.status == 'published' %}
+  <div class="status-published">This proposal has been published. <a href="/thesis">View the live thesis →</a></div>
+
+  {% elif proposal.status == 'discarded' %}
+  <div class="status-discarded">This proposal was discarded.</div>
+
+  {% else %}
+
+  <div class="iteration-row">
+    <span class="iteration-label">Iteration {{ proposal.iteration }} of {{ proposal.max_iterations }}</span>
+    <span class="iteration-dots">
+      {% for i in range(proposal.max_iterations) %}
+      <span class="dot {{ 'filled' if i < proposal.iteration else '' }}">●</span>
+      {% endfor %}
+    </span>
+  </div>
+
+  {% if proposal.summary %}
+  <div class="summary-block">
+    <p>{{ proposal.summary }}</p>
+  </div>
+  {% endif %}
+
+  {% if proposal.extensions %}
+  <div class="section-label">Proposed Extensions</div>
+  {% for item in proposal.extensions %}
+  <div class="proposal-card" data-id="{{ item.id }}" data-section="extensions">
+    <div class="item-id">{{ item.id }}</div>
+    <div class="item-claim">{{ item.claim }}</div>
+    <div class="item-meta">Force: {{ item.get('force', '—') }} · Confidence: {{ item.get('confidence', '—') }}</div>
+    {% if item.evidence %}
+    <div class="item-evidence">Evidence: {{ item.evidence | join(', ') }}</div>
+    {% endif %}
+    <div class="flag-row">
+      <label><input type="radio" name="flag-{{ item.id }}" value="accept" {{ 'checked' if item.flag == 'accept' }}> Accept</label>
+      <label><input type="radio" name="flag-{{ item.id }}" value="needs_revision" {{ 'checked' if item.flag == 'needs_revision' }}> Needs revision</label>
+      <label><input type="radio" name="flag-{{ item.id }}" value="reject" {{ 'checked' if item.flag == 'reject' }}> Reject</label>
+    </div>
+    <textarea class="annotation-field" placeholder="Your response…">{{ item.annotation or '' }}</textarea>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if proposal.revisions %}
+  <div class="section-label">Proposed Revisions</div>
+  {% for item in proposal.revisions %}
+  <div class="proposal-card" data-id="{{ item.id }}" data-section="revisions">
+    <div class="item-id">{{ item.id }}</div>
+    {% if item.get('original_claim') %}
+    <div class="item-original">Currently: {{ item.original_claim }}</div>
+    {% endif %}
+    <div class="item-revised">Proposed: {{ item.get('revised_claim', item.get('claim', '')) }}</div>
+    {% if item.get('rationale') %}
+    <div class="item-meta">{{ item.rationale }}</div>
+    {% endif %}
+    {% if item.evidence %}
+    <div class="item-evidence">Evidence: {{ item.evidence | join(', ') }}</div>
+    {% endif %}
+    <div class="flag-row">
+      <label><input type="radio" name="flag-{{ item.id }}" value="accept" {{ 'checked' if item.flag == 'accept' }}> Accept</label>
+      <label><input type="radio" name="flag-{{ item.id }}" value="needs_revision" {{ 'checked' if item.flag == 'needs_revision' }}> Needs revision</label>
+      <label><input type="radio" name="flag-{{ item.id }}" value="reject" {{ 'checked' if item.flag == 'reject' }}> Reject</label>
+    </div>
+    <textarea class="annotation-field" placeholder="Your response…">{{ item.annotation or '' }}</textarea>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if proposal.new_patterns %}
+  <div class="section-label">New Patterns</div>
+  {% for item in proposal.new_patterns %}
+  <div class="proposal-card" data-id="{{ item.id }}" data-section="new_patterns">
+    <div class="item-id">{{ item.id }}</div>
+    <div class="item-claim">{{ item.pattern }}</div>
+    <div class="item-meta">Suggested force: {{ item.get('suggested_force', '—') }}</div>
+    {% if item.evidence %}
+    <div class="item-evidence">Evidence: {{ item.evidence | join(', ') }}</div>
+    {% endif %}
+    <div class="flag-row">
+      <label><input type="radio" name="flag-{{ item.id }}" value="accept" {{ 'checked' if item.flag == 'accept' }}> Accept</label>
+      <label><input type="radio" name="flag-{{ item.id }}" value="needs_revision" {{ 'checked' if item.flag == 'needs_revision' }}> Needs revision</label>
+      <label><input type="radio" name="flag-{{ item.id }}" value="reject" {{ 'checked' if item.flag == 'reject' }}> Reject</label>
+    </div>
+    <textarea class="annotation-field" placeholder="Your response…">{{ item.annotation or '' }}</textarea>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <div class="action-bar">
+    <button class="btn-refine" onclick="triggerRefine()"
+      {% if proposal.iteration >= proposal.max_iterations %}disabled title="Maximum refinements reached"{% endif %}>
+      {% if proposal.iteration >= proposal.max_iterations %}Maximum refinements reached{% else %}Refine ↻{% endif %}
+    </button>
+    <div class="action-right">
+      <button class="btn-discard" onclick="triggerDiscard()">Discard ✗</button>
+      <button class="btn-publish" onclick="triggerPublish()">Publish ✓</button>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-msg">Refining with Opus…<br><span style="font-size:13px;color:#666;">This takes 30–60 seconds.</span></div>
+  </div>
+
+  {% endif %}
+
+  <div class="footer">Charlie — Entertainment Industry Intelligence</div>
+</div>
+
+<script>
+function collectAnnotations() {
+  const cards = document.querySelectorAll('.proposal-card');
+  const annotations = [];
+  cards.forEach(card => {
+    const id = card.dataset.id;
+    const section = card.dataset.section;
+    const flagEl = card.querySelector(`input[name="flag-${id}"]:checked`);
+    const annotationEl = card.querySelector('.annotation-field');
+    annotations.push({
+      id: id,
+      section: section,
+      flag: flagEl ? flagEl.value : null,
+      annotation: annotationEl ? annotationEl.value.trim() : '',
+    });
+  });
+  return annotations;
+}
+
+async function saveAnnotations() {
+  const annotations = collectAnnotations();
+  await fetch('/api/thesis/annotate', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({annotations}),
+  });
+}
+
+async function triggerRefine() {
+  await saveAnnotations();
+  document.getElementById('loading-overlay').style.display = 'flex';
+  try {
+    const resp = await fetch('/api/thesis/refine', {method: 'POST'});
+    const data = await resp.json();
+    if (data.status === 'ok') {
+      location.reload();
+    } else {
+      document.getElementById('loading-overlay').style.display = 'none';
+      alert('Refinement failed: ' + (data.message || 'Unknown error'));
+    }
+  } catch(e) {
+    document.getElementById('loading-overlay').style.display = 'none';
+    alert('Refinement failed. Please try again.');
+  }
+}
+
+async function triggerPublish() {
+  if (!confirm('This will update the live thesis. The next daily brief will run against the updated thesis. Publish?')) return;
+  await saveAnnotations();
+  const resp = await fetch('/api/thesis/publish', {method: 'POST'});
+  const data = await resp.json();
+  if (data.status === 'ok') {
+    window.location.href = '/thesis';
+  } else {
+    alert('Publish failed: ' + (data.message || 'Unknown error'));
+  }
+}
+
+async function triggerDiscard() {
+  if (!confirm('Discard this proposal without applying it?')) return;
+  const resp = await fetch('/api/thesis/discard', {method: 'POST'});
+  const data = await resp.json();
+  if (data.status === 'ok') {
+    window.location.href = '/thesis';
+  } else {
+    alert('Discard failed: ' + (data.message || 'Unknown error'));
+  }
+}
+</script>
+</body>
+</html>"""
+
+
 THESIS_TEMPLATE = """<!DOCTYPE html>
 <html>
 <head>
@@ -832,6 +1078,9 @@ THESIS_TEMPLATE = """<!DOCTYPE html>
 <title>Charlie — The Living Thesis</title>
 <style>
   """ + SHARED_STYLES + """
+  .pending-notice { font-size: 13px; color: #7a5c00; background: #fffbe6; border: 1px solid #f5e04a;
+                    padding: 10px 16px; border-radius: 4px; margin-bottom: 24px; }
+  .pending-notice a { color: #7a5c00; font-weight: bold; }
   .thesis-meta { font-size: 12px; color: #999; margin-bottom: 28px; }
   .force { margin-bottom: 36px; padding: 20px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
   .force-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #999; margin-bottom: 8px; }
@@ -884,6 +1133,10 @@ THESIS_TEMPLATE = """<!DOCTYPE html>
   </div>
 
   {{ nav | safe }}
+
+  {% if pending_proposal_date %}
+  <div class="pending-notice">A thesis proposal from {{ pending_proposal_date }} is awaiting review. <a href="/thesis/review">→ Review it</a></div>
+  {% endif %}
 
   {% if thesis %}
   <div class="thesis-meta">Version {{ thesis.version | default(1) }} · Updated {{ thesis.updated_at | default('unknown') }}</div>
@@ -1068,7 +1321,88 @@ def show_thesis():
     if not thesis:
         _ensure_thesis_seed()
         thesis = state.load_thesis()
-    return render_template_string(THESIS_TEMPLATE, thesis=thesis, nav=nav_html("thesis"))
+
+    proposal, _ = state.load_latest_proposal()
+    pending_proposal_date = None
+    if proposal and proposal.get("status") not in ("published", "discarded"):
+        try:
+            d = date.fromisoformat(proposal.get("generated_at", "")[:10])
+            pending_proposal_date = d.strftime("%B %d, %Y")
+        except (ValueError, AttributeError):
+            pending_proposal_date = "this week"
+
+    return render_template_string(THESIS_TEMPLATE, thesis=thesis, nav=nav_html("thesis"),
+                                  pending_proposal_date=pending_proposal_date)
+
+
+@app.route("/thesis/review")
+def thesis_review():
+    proposal, _ = state.load_latest_proposal()
+    proposal_date_display = "No proposal"
+    if proposal:
+        try:
+            d = date.fromisoformat(proposal.get("generated_at", "")[:10])
+            proposal_date_display = d.strftime("%B %d, %Y")
+        except (ValueError, AttributeError):
+            proposal_date_display = "Recent proposal"
+    return render_template_string(REVIEW_TEMPLATE, proposal=proposal,
+                                  proposal_date_display=proposal_date_display,
+                                  nav=nav_html("thesis"))
+
+
+@app.route("/api/thesis/annotate", methods=["POST"])
+def annotate_proposal():
+    proposal, path = state.load_latest_proposal()
+    if not proposal or not path:
+        return jsonify({"status": "error", "message": "No proposal found"}), 404
+    for ann in request.json.get("annotations", []):
+        item_id = ann["id"]
+        section = ann["section"]
+        for item in proposal.get(section, []):
+            if item["id"] == item_id:
+                item["flag"] = ann.get("flag")
+                item["annotation"] = ann.get("annotation")
+                break
+    state.save_proposal_update(proposal, path)
+    return jsonify({"status": "ok"})
+
+
+@app.route("/api/thesis/refine", methods=["POST"])
+def refine_thesis():
+    proposal, path = state.load_latest_proposal()
+    if not proposal or not path:
+        return jsonify({"status": "error", "message": "No proposal found"}), 404
+    if proposal.get("iteration", 0) >= proposal.get("max_iterations", 5):
+        return jsonify({"status": "error", "message": "Maximum iterations reached"}), 400
+    thesis = state.load_thesis()
+    from agents.thesis import refine_proposal
+    revised = refine_proposal(proposal, thesis)
+    state.save_proposal_update(revised, path)
+    return jsonify({"status": "ok", "iteration": revised["iteration"]})
+
+
+@app.route("/api/thesis/publish", methods=["POST"])
+def publish_thesis():
+    proposal, path = state.load_latest_proposal()
+    if not proposal or not path:
+        return jsonify({"status": "error", "message": "No proposal found"}), 404
+    from agents.thesis import publish_proposal
+    success = publish_proposal(proposal)
+    if success:
+        proposal["status"] = "published"
+        state.save_proposal_update(proposal, path)
+        return jsonify({"status": "ok"})
+    return jsonify({"status": "error", "message": "Publish failed"}), 500
+
+
+@app.route("/api/thesis/discard", methods=["POST"])
+def discard_proposal():
+    proposal, path = state.load_latest_proposal()
+    if not proposal or not path:
+        return jsonify({"status": "error", "message": "No proposal found"}), 404
+    proposal["status"] = "discarded"
+    state.save_proposal_update(proposal, path)
+    return jsonify({"status": "ok"})
 
 
 @app.route("/book")

@@ -93,14 +93,42 @@ class StateManager:
         self._write(current_path, thesis)
         return current_path
 
-    def save_thesis_proposal(self, proposal: dict):
-        """Save a proposed thesis update for Andrew to review."""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        path = config.thesis_dir / f"proposal_{timestamp}.json"
-        proposal["proposed_at"] = datetime.now().isoformat()
-        proposal["status"] = "pending_review"
-        self._write(path, proposal)
+    def save_thesis_proposal(self, proposal: dict) -> Path:
+        """Save a thesis proposal for review."""
+        proposals_dir = config.thesis_dir / "proposals"
+        proposals_dir.mkdir(parents=True, exist_ok=True)
+
+        proposal.setdefault("iteration", 0)
+        proposal.setdefault("max_iterations", 5)
+        proposal.setdefault("status", "pending")
+        proposal.setdefault("history", [
+            {"iteration": 0, "type": "synthesis", "timestamp": datetime.now().isoformat()}
+        ])
+        for key in ("extensions", "revisions", "new_patterns"):
+            for item in proposal.get(key, []):
+                item.setdefault("flag", None)
+                item.setdefault("annotation", None)
+
+        path = proposals_dir / f"{date.today().isoformat()}.json"
+        with open(path, "w") as f:
+            json.dump(proposal, f, indent=2, default=str)
         return path
+
+    def load_latest_proposal(self) -> tuple:
+        """Load the most recent thesis proposal. Returns (proposal, path) or (None, None)."""
+        proposals_dir = config.thesis_dir / "proposals"
+        if not proposals_dir.exists():
+            return None, None
+        files = sorted(proposals_dir.glob("*.json"), reverse=True)
+        if not files:
+            return None, None
+        with open(files[0]) as f:
+            return json.load(f), files[0]
+
+    def save_proposal_update(self, proposal: dict, path: Path):
+        """Overwrite an existing proposal file (after annotation or refinement)."""
+        with open(path, "w") as f:
+            json.dump(proposal, f, indent=2, default=str)
 
     # ── Watchlists ───────────────────────────────────────────────────────
 
