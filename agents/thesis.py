@@ -52,16 +52,25 @@ def run_thesis(days_back: int = 7) -> dict:
     # Build session block for user message
     session_block = ""
     if sessions:
+        tier_sessions = [s for s in sessions if s["tier"] != "freeform"]
+        freeform_sessions = [s for s in sessions if s["tier"] == "freeform"]
+
         session_lines = [
             "\n## User Engagement Signals (This Week)",
             "The following insights emerged from the end user's engagement with daily briefs.",
             'Treat "challenges" dispositions as high-priority investigation targets.',
             'Treat "new_signal" dispositions as potential thesis extensions.',
         ]
-        for s in sessions:
+        for s in tier_sessions:
             session_lines.append(
                 f"- [{s['disposition'].upper()}] [{s['thesis_force']}] {s['signal_category']}: {s['insight']} (confidence: {s['confidence']})"
             )
+        if freeform_sessions:
+            session_lines.append("\nGeneral observations (extract category-level patterns only):")
+            for s in freeform_sessions:
+                session_lines.append(
+                    f"- [{s['disposition'].upper()}] [{s['thesis_force']}] {s['insight']} (confidence: {s['confidence']})"
+                )
         session_block = "\n".join(session_lines)
 
     user_message = f"""Review the {len(recent_signals)} signals from the past {days_back} days
