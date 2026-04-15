@@ -503,7 +503,6 @@ COMPANION_TEMPLATE = """<!DOCTYPE html>
   </div>
   {% endfor %}
 
-  {% if brief %}
   <div class="tier-block" style="border-top: 2px solid #1a1a1a; margin-top: 8px;">
     <div class="tier-label" style="margin-bottom: 12px;">Brain Dump</div>
     <p style="font-size: 14px; color: #666; margin-bottom: 20px; line-height: 1.6;">Anything on your mind that doesn't fit the tiers — patterns, hunches, things you're noticing. Write freely.</p>
