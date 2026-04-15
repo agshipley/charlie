@@ -51,9 +51,9 @@ def add_rating(signal_headline: str, signal_type: str, rating: int, brief_date: 
 def nav_html(active: str) -> str:
     return f"""<div class="nav">
   <a href="/" class="{'active' if active == 'brief' else ''}">The Brief</a>
+  <a href="/companion" class="{'active' if active == 'companion' else ''}">Companion</a>
   <a href="/thesis" class="{'active' if active == 'thesis' else ''}">Living Thesis</a>
   <a href="/book" class="{'active' if active == 'book' else ''}">Book Project</a>
-  <a href="/companion" class="{'active' if active == 'companion' else ''}">Companion</a>
   <a href="/archive" class="{'active' if active == 'archive' else ''}">Archive</a>
   <a href="/run" class="{'active' if active == 'run' else ''}">Run</a>
 </div>"""
