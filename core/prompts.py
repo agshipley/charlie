@@ -384,7 +384,7 @@ def build_adversary_prompt(brief: dict, sessions_last_30: list, briefs_last_14: 
     if sessions_last_30:
         sessions_text = "\n## Liz's Recent Session Feedback (last 30 days)\n"
         for s in sessions_last_30[-20:]:
-            sid = s.get("session_id", "unknown")
+            sid = s.get("id", "unknown")
             disposition = s.get("disposition", "?")
             force = s.get("thesis_force", "?")
             insight = s.get("insight", "")

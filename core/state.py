@@ -185,10 +185,10 @@ class StateManager:
         return self._read(path)
 
     def load_recent_briefs(self, days: int = 14) -> list[dict]:
-        """Load briefs from the last N days, returning the brief sub-dict for each."""
+        """Load briefs from the last N days (excluding today), returning the brief sub-dict for each."""
         results = []
         today = date.today()
-        for i in range(days):
+        for i in range(1, days + 1):  # start at 1 to exclude today (passed explicitly to adversary)
             d = date.fromordinal(today.toordinal() - i)
             brief = self.load_brief(d)
             if brief:

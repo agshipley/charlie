@@ -5,6 +5,7 @@ Called at the end of each pipeline run to produce human-readable documents
 from the JSON data that the agents generate.
 """
 
+import html as html_lib
 import json
 import subprocess
 from datetime import date, datetime
@@ -274,9 +275,11 @@ def _render_shadow_mode_html(adversary: dict | None) -> str:
     parts = ['<div class="shadow-mode">']
     parts.append('<h3>Shadow Mode — Adversary Output (not yet visible to Liz)</h3>')
 
+    e = html_lib.escape  # shorthand
+
     summary = adversary.get("summary", "")
     if summary:
-        parts.append(f"<p><strong>Summary:</strong> {summary}</p>")
+        parts.append(f"<p><strong>Summary:</strong> {e(summary)}</p>")
 
     findings = adversary.get("findings", {})
     category_labels = {
@@ -293,32 +296,32 @@ def _render_shadow_mode_html(adversary: dict | None) -> str:
         parts.append(f"<h4>{label}</h4><ul>")
         for item in items:
             if key == "flattery":
-                tier = item.get("tier", "?")
-                citation = item.get("citation", "")
-                critique = item.get("critique", "")
-                sess = item.get("prior_session_id", "")
+                tier = e(item.get("tier", "?"))
+                citation = e(item.get("citation", ""))
+                critique = e(item.get("critique", ""))
+                sess = e(item.get("prior_session_id", "") or "")
                 sess_html = f" <em>(session: {sess})</em>" if sess else ""
                 parts.append(f'<li>[{tier}] &ldquo;{citation}&rdquo;{sess_html}<br>{critique}</li>')
             elif key == "pattern_exhaustion":
-                pattern = item.get("pattern", "")
+                pattern = e(item.get("pattern", ""))
                 occ = item.get("occurrences", "?")
                 window = item.get("window_days", 14)
-                critique = item.get("critique", "")
+                critique = e(item.get("critique", ""))
                 parts.append(f"<li><strong>{pattern}</strong> ({occ}x in {window}d)<br>{critique}</li>")
             elif key == "inference_theater":
-                claim = item.get("claim", "")
-                signal = item.get("underlying_signal", "")
-                critique = item.get("critique", "")
+                claim = e(item.get("claim", ""))
+                signal = e(item.get("underlying_signal", ""))
+                critique = e(item.get("critique", ""))
                 parts.append(f'<li>&ldquo;{claim}&rdquo;<br>Signal: {signal}<br>{critique}</li>')
             elif key == "missing_story":
-                ref = item.get("signal_reference", "")
-                declined = item.get("declined_reading", "")
-                critique = item.get("critique", "")
+                ref = e(item.get("signal_reference", ""))
+                declined = e(item.get("declined_reading", ""))
+                critique = e(item.get("critique", ""))
                 parts.append(f"<li>Signal: {ref}<br>Brief said: {declined}<br>Harder read: {critique}</li>")
             elif key == "comfortable_framing":
-                phrase = item.get("phrase", "")
-                tier = item.get("tier", "?")
-                critique = item.get("critique", "")
+                phrase = e(item.get("phrase", ""))
+                tier = e(item.get("tier", "?"))
+                critique = e(item.get("critique", ""))
                 parts.append(f'<li>[{tier}] &ldquo;{phrase}&rdquo;<br>{critique}</li>')
         parts.append("</ul>")
 

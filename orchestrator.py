@@ -23,6 +23,7 @@ from core.render import render_brief, render_thesis_proposal
 from agents.ingestion import run_ingestion
 from agents.analysis import run_analysis
 from agents.brief import run_brief
+from agents.adversary import run_adversary
 from agents.thesis import run_thesis
 
 
@@ -66,7 +67,6 @@ def run_daily_pipeline(run_date: date | None = None):
     print("\n" + "─" * 40)
     print("STEP 3.5: ADVERSARIAL REVIEW")
     print("─" * 40)
-    from agents.adversary import run_adversary
     adversary = run_adversary(brief, run_date)
 
     # Step 4: Render readable output
