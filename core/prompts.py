@@ -211,7 +211,7 @@ Key relationships: {json.dumps(slate.get('relationships', []))}
 Use this framework to weight findings. Signals about structural forces (IP pipeline saturation, audience migration patterns, creator-to-institutional bridges) should score higher than routine industry news.
 
 ## Your Job
-Produce The Brief — three tiers, most impactful first.
+Produce The Morning Loaf — three tiers, most impactful first.
 
 ### Tier 1: The Signal
 The single highest-implication finding FROM THE LAST 48 HOURS. Not the biggest headline — the thing that reveals where money, talent, or mandates are structurally moving. Two to three sentences. Ends with an open question. Prioritize findings that map to one of the three thesis forces. If a finding references a specific number or dollar amount, it must be precise and current — do not use approximate or potentially stale figures. If the finding involves a strategic claim, unpack what it actually means concretely (which deals, which companies, what structures) rather than stating it abstractly.

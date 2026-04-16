@@ -50,7 +50,7 @@ def add_rating(signal_headline: str, signal_type: str, rating: int, brief_date: 
 
 def nav_html(active: str) -> str:
     return f"""<div class="nav">
-  <a href="/" class="{'active' if active == 'brief' else ''}">The Brief</a>
+  <a href="/" class="{'active' if active == 'brief' else ''}">The Morning Loaf</a>
   <a href="/companion" class="{'active' if active == 'companion' else ''}">Companion</a>
   <a href="/thesis" class="{'active' if active == 'thesis' else ''}">Living Thesis</a>
   <a href="/book" class="{'active' if active == 'book' else ''}">Book Project</a>
@@ -86,7 +86,7 @@ BRIEF_TEMPLATE = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Charlie — The Brief</title>
+<title>Charlie — The Morning Loaf</title>
 <style>
   """ + SHARED_STYLES + """
   .date-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; font-size: 13px; }
@@ -136,7 +136,7 @@ BRIEF_TEMPLATE = """<!DOCTYPE html>
 <body>
 <div class="container">
   <div class="header">
-    <h1>The Brief</h1>
+    <h1>The Morning Loaf</h1>
     <div class="sub">{{ date_display }}</div>
   </div>
 
@@ -221,7 +221,7 @@ BRIEF_TEMPLATE = """<!DOCTYPE html>
 
   {% else %}
   <p class="empty">No brief available for this date.</p>
-  <p style="margin-top: 16px;"><a href="/run">Run The Brief now →</a></p>
+  <p style="margin-top: 16px;"><a href="/run">Run The Morning Loaf now →</a></p>
   {% endif %}
 
   <div class="footer">Charlie — Entertainment Industry Intelligence</div>
@@ -274,7 +274,7 @@ ARCHIVE_TEMPLATE = """<!DOCTYPE html>
 <body>
 <div class="container">
   <div class="header">
-    <h1>The Brief</h1>
+    <h1>The Morning Loaf</h1>
     <div class="sub">Archive</div>
   </div>
 
@@ -329,7 +329,7 @@ RUN_TEMPLATE = """<!DOCTYPE html>
 <body>
 <div class="container">
   <div class="header">
-    <h1>The Brief</h1>
+    <h1>The Morning Loaf</h1>
     <div class="sub">Run Pipeline</div>
   </div>
 
@@ -364,7 +364,7 @@ RUNNING_TEMPLATE = """<!DOCTYPE html>
 <body>
 <div class="container">
   <div class="header">
-    <h1>The Brief</h1>
+    <h1>The Morning Loaf</h1>
     <div class="sub">Pipeline Running</div>
   </div>
 
@@ -372,7 +372,7 @@ RUNNING_TEMPLATE = """<!DOCTYPE html>
 
   <div class="status-box">
     <p>The daily pipeline is running in the background.</p>
-    <p class="hint">This page will redirect to The Brief in 10 minutes, or <a href="/">check now</a>.</p>
+    <p class="hint">This page will redirect to The Morning Loaf in 10 minutes, or <a href="/">check now</a>.</p>
   </div>
 
   <div class="footer">Charlie — Entertainment Industry Intelligence</div>
@@ -434,7 +434,7 @@ COMPANION_TEMPLATE = """<!DOCTYPE html>
   {{ nav | safe }}
 
   {% if not brief %}
-  <p class="empty">No brief available to respond to. <a href="/run">Run The Brief now →</a></p>
+  <p class="empty">No brief available to respond to. <a href="/run">Run The Morning Loaf now →</a></p>
   {% else %}
   <p class="companion-intro">Respond to today's open questions. Your insights calibrate what Charlie surfaces next.</p>
 

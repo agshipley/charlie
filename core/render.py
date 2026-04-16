@@ -19,7 +19,7 @@ BRIEF_HTML_TEMPLATE = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The Brief — {date}</title>
+<title>The Morning Loaf — {date}</title>
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
   body {{ font-family: 'Georgia', serif; background: #fafafa; color: #1a1a1a; line-height: 1.6; }}
@@ -50,7 +50,7 @@ BRIEF_HTML_TEMPLATE = """<!DOCTYPE html>
 <body>
 <div class="container">
   <div class="header">
-    <h1>The Brief</h1>
+    <h1>The Morning Loaf</h1>
     <div class="date">{date}</div>
   </div>
   {tiers}
@@ -138,7 +138,7 @@ def render_brief(brief: dict, signals: list[dict] = None, findings: dict = None,
 def _render_brief_md(brief, signals, findings, run_date, day_name):
     """Render brief as markdown."""
     lines = []
-    lines.append(f"# The Brief — {day_name}")
+    lines.append(f"# The Morning Loaf — {day_name}")
     lines.append("")
     lines.append("---")
     lines.append("")

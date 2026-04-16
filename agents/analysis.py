@@ -95,7 +95,7 @@ def run_analysis(signals: list[dict] | None = None, run_date: date | None = None
 
 Run inference chains on each. Identify discrepancies. Cross-reference for patterns.
 Rank by implication weight. Flag thesis-relevant findings. Recommend tier placement
-for The Brief.
+for The Morning Loaf.
 
 ## Signals
 ```json

@@ -1,5 +1,5 @@
 """
-Brief Generator — produces The Brief's three-tier output.
+Brief Generator — produces The Morning Loaf's three-tier output.
 
 Takes ranked findings from the Analysis Agent and Liz's persistent context,
 generates the daily Brief: Signal, Bullshit Flag, Your World.
@@ -17,7 +17,7 @@ from core.prompts import build_brief_prompt
 
 def run_brief(findings: dict | None = None, run_date: date | None = None) -> dict:
     """
-    Generate The Brief from analysis findings.
+    Generate The Morning Loaf from analysis findings.
 
     Returns the brief dict with tier_1, tier_2, tier_3.
     """
