@@ -184,6 +184,30 @@ class StateManager:
         path = self.data_dir / "adversary" / f"{run_date.isoformat()}.json"
         return self._read(path)
 
+    def save_adversary_feedback(self, entry: dict) -> None:
+        """Append a single feedback entry to data/adversary/feedback.json."""
+        path = self.data_dir / "adversary" / "feedback.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if path.exists():
+            with open(path) as f:
+                data = json.load(f)
+        else:
+            data = {"feedback": []}
+        data["feedback"].append(entry)
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2, default=str)
+
+    def load_adversary_feedback(self, days_back: int = 30) -> list:
+        """Load feedback entries within the window, sorted newest first."""
+        path = self.data_dir / "adversary" / "feedback.json"
+        if not path.exists():
+            return []
+        with open(path) as f:
+            data = json.load(f)
+        cutoff = (date.today() - timedelta(days=days_back)).isoformat()
+        entries = [e for e in data.get("feedback", []) if e.get("adversary_date", "") >= cutoff]
+        return sorted(entries, key=lambda e: e.get("submitted_at", ""), reverse=True)
+
     def load_recent_briefs(self, days: int = 14) -> list[dict]:
         """Load briefs from the last N days (excluding today), returning the brief sub-dict for each."""
         results = []

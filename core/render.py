@@ -212,7 +212,9 @@ def _render_brief_md(brief, signals, findings, run_date, day_name, adversary=Non
     # ── Shadow Mode: Adversary Output ──
     lines.append("---")
     lines.append("")
-    lines.append("## SHADOW MODE — Adversary Output (not yet visible to Liz)")
+    lines.append("## Adversary")
+    lines.append("")
+    lines.append("*What this brief might be getting wrong*")
     lines.append("")
     if not adversary or adversary.get("null_finding", True):
         lines.append("Adversary: no findings today.")
@@ -270,10 +272,11 @@ def _render_brief_md(brief, signals, findings, run_date, day_name, adversary=Non
 def _render_shadow_mode_html(adversary: dict | None) -> str:
     """Render the adversary shadow mode block as HTML."""
     if not adversary or adversary.get("null_finding", True):
-        return '<div class="shadow-mode"><h3>Shadow Mode — Adversary Output</h3><p class="null">Adversary: no findings today.</p></div>'
+        return '<div class="shadow-mode"><h3>Adversary</h3><p class="adversary-sub">What this brief might be getting wrong</p><p class="null">Adversary: no findings today.</p></div>'
 
     parts = ['<div class="shadow-mode">']
-    parts.append('<h3>Shadow Mode — Adversary Output (not yet visible to Liz)</h3>')
+    parts.append('<h3>Adversary</h3>')
+    parts.append('<p class="adversary-sub">What this brief might be getting wrong</p>')
 
     e = html_lib.escape  # shorthand
 

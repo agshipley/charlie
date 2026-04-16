@@ -126,6 +126,16 @@ BRIEF_TEMPLATE = """<!DOCTYPE html>
   .rating-btn.mid.selected { background: #7f8c8d; border-color: #7f8c8d; }
   .rating-btn.high.selected { background: #27ae60; border-color: #27ae60; }
 
+  .adversary-section { margin-top: 40px; border-top: 2px solid #1a1a1a; padding-top: 24px; }
+  .adv-title { font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: #1a1a1a; font-weight: 600; margin-bottom: 4px; }
+  .adv-sub { font-size: 12px; color: #999; margin-bottom: 16px; }
+  .adv-summary { font-size: 14px; color: #555; font-style: italic; margin-bottom: 20px; line-height: 1.5; }
+  .adv-category { margin-bottom: 16px; }
+  .adv-cat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-bottom: 8px; }
+  .adv-finding { padding: 12px 14px; background: #f8f8f6; border-left: 3px solid #ccc; margin-bottom: 8px; }
+  .adv-citation { font-size: 13px; color: #333; font-style: italic; margin-bottom: 4px; }
+  .adv-meta { font-size: 11px; color: #aaa; margin-bottom: 6px; }
+  .adv-critique { font-size: 13px; color: #555; line-height: 1.5; }
   @media print {
     body { background: white; }
     .container { padding: 20px 0; }
@@ -218,6 +228,56 @@ BRIEF_TEMPLATE = """<!DOCTYPE html>
     {% endfor %}
   </div>
   {% endif %}
+
+  <div class="adversary-section">
+    <div class="adv-title">Adversary</div>
+    <div class="adv-sub">What this brief might be getting wrong</div>
+    {% if not adversary %}
+    <p class="empty">Adversary: no output for this date.</p>
+    {% elif adversary.null_finding %}
+    <p class="empty">Adversary: no findings today.</p>
+    {% else %}
+    {% if adversary.summary %}
+    <p class="adv-summary">{{ adversary.summary }}</p>
+    {% endif %}
+    {% set adv_categories = [
+      ('flattery', 'Flattery'),
+      ('pattern_exhaustion', 'Pattern Exhaustion'),
+      ('inference_theater', 'Inference Theater'),
+      ('missing_story', 'Missing Story'),
+      ('comfortable_framing', 'Comfortable Framing')
+    ] %}
+    {% for cat_key, cat_label in adv_categories %}
+    {% set cat_items = adversary.findings.get(cat_key, []) %}
+    {% if cat_items %}
+    <div class="adv-category">
+      <div class="adv-cat-label">{{ cat_label }} ({{ cat_items|length }})</div>
+      {% for item in cat_items %}
+      <div class="adv-finding">
+        {% if cat_key == 'flattery' %}
+        <div class="adv-citation">"{{ item.citation }}"</div>
+        <div class="adv-meta">Tier: {{ item.tier }}{% if item.prior_session_id %} · Session: {{ item.prior_session_id }}{% endif %}</div>
+        {% elif cat_key == 'pattern_exhaustion' %}
+        <div class="adv-citation">{{ item.pattern }}</div>
+        <div class="adv-meta">{{ item.occurrences }}× in {{ item.window_days }} days</div>
+        {% elif cat_key == 'inference_theater' %}
+        <div class="adv-citation">"{{ item.claim }}"</div>
+        <div class="adv-meta">Signal: {{ item.underlying_signal }}</div>
+        {% elif cat_key == 'missing_story' %}
+        <div class="adv-citation">Signal: {{ item.signal_reference }}</div>
+        <div class="adv-meta">Brief said: {{ item.declined_reading }}</div>
+        {% elif cat_key == 'comfortable_framing' %}
+        <div class="adv-citation">"{{ item.phrase }}"</div>
+        <div class="adv-meta">Tier: {{ item.tier }}</div>
+        {% endif %}
+        <div class="adv-critique">{{ item.critique }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+  </div>
 
   {% else %}
   <p class="empty">No brief available for this date.</p>
@@ -422,6 +482,39 @@ COMPANION_TEMPLATE = """<!DOCTYPE html>
   .error-msg { margin-top: 14px; padding: 10px 14px; background: #fde8e8; color: #c0392b;
                border-radius: 4px; font-size: 14px; display: none; }
   .empty-tier { font-size: 14px; color: #999; font-style: italic; }
+  .dc-toggle-row { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; }
+  .dc-toggle-btn { padding: 8px 16px; background: #f5f5f0; color: #666; border: 1px solid #ddd;
+                   border-radius: 4px; font-size: 13px; cursor: pointer; }
+  .dc-toggle-btn:hover { background: #ebebeb; }
+  .dc-toggle-btn.dc-on { background: #1a1a1a; color: white; border-color: #1a1a1a; }
+  .dc-toggle-hint { font-size: 12px; color: #bbb; }
+  .dc-wrap { margin-top: 8px; }
+  .dc-header-bar { padding: 20px 24px; background: #1a1a1a; color: white; border-radius: 6px 6px 0 0; }
+  .dc-header-title { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; font-weight: 600; margin-bottom: 8px; }
+  .dc-header-sub { font-size: 13px; color: #aaa; line-height: 1.5; }
+  .dc-body { border: 1px solid #1a1a1a; border-top: none; border-radius: 0 0 6px 6px; padding: 20px 24px; background: white; }
+  .dc-summary { font-size: 14px; color: #555; font-style: italic; margin-bottom: 20px; line-height: 1.5; }
+  .dc-cat-header { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #999;
+                   margin-top: 20px; margin-bottom: 10px; font-weight: 600; }
+  .dc-no-findings { font-size: 13px; color: #bbb; font-style: italic; margin-bottom: 8px; }
+  .dc-null { font-size: 14px; color: #999; font-style: italic; }
+  .dc-card { border: 1px solid #e0e0e0; border-radius: 6px; padding: 16px; margin-bottom: 12px; background: #fafaf8; }
+  .dc-card-content { margin-bottom: 14px; }
+  .dc-citation { font-size: 14px; color: #1a1a1a; font-style: italic; margin-bottom: 4px; }
+  .dc-item-meta { font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .dc-critique { font-size: 14px; color: #333; line-height: 1.5; }
+  .dc-radios { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+  .dc-radios label { font-size: 14px; color: #333; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  .dc-radios input[type="radio"] { accent-color: #1a1a1a; }
+  .dc-note { width: 100%; min-height: 56px; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px;
+             font-family: Georgia, serif; font-size: 13px; color: #1a1a1a; resize: vertical; margin-bottom: 10px; }
+  .dc-note:focus { outline: none; border-color: #1a1a1a; }
+  .dc-submit-btn { padding: 8px 18px; background: #1a1a1a; color: white; border: none; border-radius: 4px;
+                   font-size: 13px; cursor: pointer; }
+  .dc-submit-btn:hover:not(:disabled) { background: #333; }
+  .dc-submit-btn:disabled { background: #ccc; cursor: default; }
+  .dc-done { font-size: 14px; color: #27ae60; padding: 6px 0; }
+  .dc-done a { color: #27ae60; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -437,6 +530,11 @@ COMPANION_TEMPLATE = """<!DOCTYPE html>
   <p class="empty">No brief available to respond to. <a href="/run">Run The Morning Loaf now →</a></p>
   {% else %}
   <p class="companion-intro">Respond to today's open questions. Your insights calibrate what Charlie surfaces next.</p>
+
+  <div class="dc-toggle-row">
+    <button id="dc-toggle-btn" class="dc-toggle-btn" onclick="toggleDC()">Dark Comprandon: OFF</button>
+    <span class="dc-toggle-hint">Adversary critique of today's brief</span>
+  </div>
 
   {% set tier_defs = [
     ('tier_1', 'The Signal', brief.get('tier_1')),
@@ -544,6 +642,75 @@ COMPANION_TEMPLATE = """<!DOCTYPE html>
     <div class="confirmation" id="confirm-freeform">Saved. Thank you.</div>
     <div class="error-msg" id="error-freeform">Something went wrong. Please try again.</div>
   </div>
+
+  <div id="dc-section" class="dc-wrap" style="display:none; margin-top: 40px;">
+    <div class="dc-header-bar">
+      <div class="dc-header-title">Dark Comprandon</div>
+      {% if adversary and not adversary.null_finding %}
+      <div class="dc-header-sub">Today's adversary found {{ adversary_total }} thing{{ 's' if adversary_total != 1 else '' }} worth pushing back on the brief about. Your responses are logged for Andrew to review. They do not feed back into Charlie's pipeline.</div>
+      {% else %}
+      <div class="dc-header-sub">No adversary output available for today's brief.</div>
+      {% endif %}
+    </div>
+    <div class="dc-body">
+      {% if not adversary or adversary.null_finding %}
+      <p class="dc-null">The adversary found nothing to push back on today.</p>
+      {% else %}
+      {% if adversary.summary %}
+      <p class="dc-summary">{{ adversary.summary }}</p>
+      {% endif %}
+      {% set dc_cats = [
+        ('flattery', 'Flattery'),
+        ('pattern_exhaustion', 'Pattern Exhaustion'),
+        ('inference_theater', 'Inference Theater'),
+        ('missing_story', 'Missing Story'),
+        ('comfortable_framing', 'Comfortable Framing')
+      ] %}
+      {% for cat_key, cat_label in dc_cats %}
+      {% set cat_items = adversary.findings.get(cat_key, []) %}
+      <div class="dc-cat-header">{{ cat_label }}{% if cat_items %} ({{ cat_items|length }}){% endif %}</div>
+      {% if not cat_items %}
+      <p class="dc-no-findings">{{ cat_label }}: no findings today.</p>
+      {% else %}
+      {% for item in cat_items %}
+      <div class="dc-card">
+        <div class="dc-card-content">
+          {% if cat_key == 'flattery' %}
+          <div class="dc-citation">"{{ item.citation }}"</div>
+          <div class="dc-item-meta">Tier: {{ item.tier }}{% if item.prior_session_id %} · Session: {{ item.prior_session_id }}{% endif %}</div>
+          {% elif cat_key == 'pattern_exhaustion' %}
+          <div class="dc-citation">{{ item.pattern }}</div>
+          <div class="dc-item-meta">{{ item.occurrences }}× in {{ item.window_days }} days</div>
+          {% elif cat_key == 'inference_theater' %}
+          <div class="dc-citation">"{{ item.claim }}"</div>
+          <div class="dc-item-meta">Signal: {{ item.underlying_signal }}</div>
+          {% elif cat_key == 'missing_story' %}
+          <div class="dc-citation">Signal: {{ item.signal_reference }}</div>
+          <div class="dc-item-meta">Brief said: {{ item.declined_reading }}</div>
+          {% elif cat_key == 'comfortable_framing' %}
+          <div class="dc-citation">"{{ item.phrase }}"</div>
+          <div class="dc-item-meta">Tier: {{ item.tier }}</div>
+          {% endif %}
+          <div class="dc-critique">{{ item.critique }}</div>
+        </div>
+        <div id="adv-done-{{ cat_key }}-{{ loop.index0 }}" class="dc-done" style="display:none"></div>
+        <div id="adv-form-{{ cat_key }}-{{ loop.index0 }}">
+          <div class="dc-radios">
+            <label><input type="radio" name="adv-disp-{{ cat_key }}-{{ loop.index0 }}" value="fair_hit"> Fair hit</label>
+            <label><input type="radio" name="adv-disp-{{ cat_key }}-{{ loop.index0 }}" value="off_base"> Off-base</label>
+            <label><input type="radio" name="adv-disp-{{ cat_key }}-{{ loop.index0 }}" value="partially_right"> Partially right</label>
+          </div>
+          <textarea id="adv-note-{{ cat_key }}-{{ loop.index0 }}" class="dc-note" placeholder="Optional note..."></textarea>
+          <button id="adv-btn-{{ cat_key }}-{{ loop.index0 }}" class="dc-submit-btn"
+                  onclick="submitAdvFeedback('{{ cat_key }}', {{ loop.index0 }}, '{{ brief_date }}')">Submit</button>
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
+      {% endfor %}
+      {% endif %}
+    </div>
+  </div>
   {% endif %}
 
   <div class="footer">Charlie — Entertainment Industry Intelligence</div>
@@ -594,6 +761,70 @@ function submitTier(tier, question, briefDate) {
     if (btn) btn.disabled = false;
   });
 }
+
+// Dark Comprandon toggle
+const DC_KEY = 'dc_toggle';
+function initDC() {
+  const on = localStorage.getItem(DC_KEY) === '1';
+  const section = document.getElementById('dc-section');
+  const btn = document.getElementById('dc-toggle-btn');
+  if (section) section.style.display = on ? 'block' : 'none';
+  if (btn) {
+    btn.textContent = on ? 'Dark Comprandon: ON' : 'Dark Comprandon: OFF';
+    btn.classList.toggle('dc-on', on);
+  }
+}
+function toggleDC() {
+  const on = localStorage.getItem(DC_KEY) === '1';
+  localStorage.setItem(DC_KEY, on ? '0' : '1');
+  initDC();
+}
+
+async function submitAdvFeedback(category, findingIndex, adversaryDate) {
+  const radioName = 'adv-disp-' + category + '-' + findingIndex;
+  const dispositionEl = document.querySelector('input[name="' + radioName + '"]:checked');
+  if (!dispositionEl) { alert('Select a response before submitting.'); return; }
+  const noteEl = document.getElementById('adv-note-' + category + '-' + findingIndex);
+  const note = noteEl ? noteEl.value.trim() : '';
+  const btn = document.getElementById('adv-btn-' + category + '-' + findingIndex);
+  if (btn) btn.disabled = true;
+  try {
+    const resp = await fetch('/api/adversary/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adversary_date: adversaryDate, category: category,
+                             finding_index: findingIndex, disposition: dispositionEl.value, note: note })
+    });
+    if (resp.ok) {
+      const labels = { fair_hit: 'Fair hit', off_base: 'Off-base', partially_right: 'Partially right' };
+      const dispLabel = labels[dispositionEl.value] || dispositionEl.value;
+      const form = document.getElementById('adv-form-' + category + '-' + findingIndex);
+      const done = document.getElementById('adv-done-' + category + '-' + findingIndex);
+      if (form) form.style.display = 'none';
+      if (done) {
+        done.innerHTML = 'Response recorded \u2014 <strong>' + dispLabel + '</strong>. <a href="#" onclick="reopenAdv(\'' + category + '\',' + findingIndex + ');return false;">Change</a>';
+        done.style.display = 'block';
+      }
+    } else {
+      if (btn) btn.disabled = false;
+      alert('Something went wrong. Please try again.');
+    }
+  } catch(e) {
+    if (btn) btn.disabled = false;
+    alert('Something went wrong. Please try again.');
+  }
+}
+
+function reopenAdv(category, findingIndex) {
+  const form = document.getElementById('adv-form-' + category + '-' + findingIndex);
+  const done = document.getElementById('adv-done-' + category + '-' + findingIndex);
+  const btn = document.getElementById('adv-btn-' + category + '-' + findingIndex);
+  if (form) form.style.display = 'block';
+  if (done) done.style.display = 'none';
+  if (btn) btn.disabled = false;
+}
+
+document.addEventListener('DOMContentLoaded', initDC);
 
 function submitFreeform(briefDate) {
   const insight = document.getElementById('insight-freeform').value.trim();
@@ -719,11 +950,24 @@ def companion():
         except ValueError:
             date_display = brief_date
 
+    adversary = None
+    adversary_total = 0
+    if brief_date:
+        try:
+            adversary = state.load_adversary(date.fromisoformat(brief_date))
+            if adversary and not adversary.get("null_finding", True):
+                findings = adversary.get("findings", {})
+                adversary_total = sum(len(v) for v in findings.values() if isinstance(v, list))
+        except (ValueError, Exception):
+            pass
+
     return render_template_string(COMPANION_TEMPLATE,
                                   brief=brief,
                                   brief_date=brief_date,
                                   date_display=date_display,
-                                  nav=nav_html("companion"))
+                                  nav=nav_html("companion"),
+                                  adversary=adversary,
+                                  adversary_total=adversary_total)
 
 
 @app.route("/api/companion/session", methods=["POST"])
@@ -766,6 +1010,52 @@ def submit_session():
     return jsonify({"status": "ok", "id": entry_id})
 
 
+_ADV_DISPOSITIONS = {"fair_hit", "off_base", "partially_right"}
+_ADV_CATEGORIES = {"flattery", "pattern_exhaustion", "inference_theater", "missing_story", "comfortable_framing"}
+
+@app.route("/api/adversary/feedback", methods=["POST"])
+def submit_adversary_feedback():
+    data = request.json
+    if not data:
+        return jsonify({"error": "No data"}), 400
+
+    category = data.get("category", "")
+    disposition = data.get("disposition", "")
+    finding_index = data.get("finding_index")
+    adversary_date_str = data.get("adversary_date", "")
+    note = data.get("note") or ""
+
+    if disposition not in _ADV_DISPOSITIONS:
+        return jsonify({"error": "Invalid disposition"}), 400
+    if category not in _ADV_CATEGORIES:
+        return jsonify({"error": "Invalid category"}), 400
+    try:
+        adversary_date = date.fromisoformat(adversary_date_str)
+    except ValueError:
+        return jsonify({"error": "Invalid adversary_date"}), 400
+
+    adversary = state.load_adversary(adversary_date)
+    if not adversary:
+        return jsonify({"error": "No adversary found for this date"}), 404
+
+    cat_findings = adversary.get("findings", {}).get(category, [])
+    if not isinstance(finding_index, int) or finding_index < 0 or finding_index >= len(cat_findings):
+        return jsonify({"error": "Invalid finding_index"}), 400
+
+    date_str = adversary_date_str.replace("-", "")
+    entry = {
+        "id": f"af_{date_str}_{category}_{finding_index}",
+        "adversary_date": adversary_date_str,
+        "submitted_at": datetime.utcnow().isoformat() + "Z",
+        "category": category,
+        "finding_index": finding_index,
+        "disposition": disposition,
+        "note": note,
+    }
+    state.save_adversary_feedback(entry)
+    return jsonify(entry), 200
+
+
 @app.route("/brief/<brief_date>")
 def show_brief(brief_date):
     briefs_dir = config.briefs_dir
@@ -799,13 +1089,20 @@ def show_brief(brief_date):
     except ValueError:
         date_display = brief_date
 
+    adversary = None
+    try:
+        adversary = state.load_adversary(date.fromisoformat(brief_date))
+    except ValueError:
+        pass
+
     return render_template_string(BRIEF_TEMPLATE,
                                  brief=brief, signals=signals,
                                  date_display=date_display,
                                  nav=nav_html("brief"),
                                  current_date=brief_date,
                                  prev_date=prev_date,
-                                 next_date=next_date)
+                                 next_date=next_date,
+                                 adversary=adversary)
 
 
 # ── Brief API ────────────────────────────────────────────────────────────
