@@ -62,15 +62,25 @@ def run_daily_pipeline(run_date: date | None = None):
     print("─" * 40)
     brief = run_brief(analysis, run_date)
 
+    # Step 3.5: Adversarial Review
+    print("\n" + "─" * 40)
+    print("STEP 3.5: ADVERSARIAL REVIEW")
+    print("─" * 40)
+    from agents.adversary import run_adversary
+    adversary = run_adversary(brief, run_date)
+
     # Step 4: Render readable output
     print("\n" + "─" * 40)
     print("STEP 4: RENDER")
     print("─" * 40)
-    md_path = render_brief(brief, signals=signals, findings=analysis, run_date=run_date)
+    md_path = render_brief(brief, signals=signals, findings=analysis, run_date=run_date, adversary=adversary)
     print(f"[Pipeline] Readable brief: {md_path}")
 
+    null_finding = adversary.get("null_finding", True) if adversary else True
+    adversary_note = "no findings" if null_finding else "findings present (shadow mode)"
     print(f"\n{'='*60}")
     print(f"  Pipeline complete. {len(signals)} signals → {len(findings)} findings → Brief")
+    print(f"  Adversary: {adversary_note}")
     print(f"  Readable output: {md_path}")
     print(f"  Finished: {datetime.now().strftime('%H:%M:%S')}")
     print(f"{'='*60}\n")

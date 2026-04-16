@@ -168,6 +168,34 @@ class StateManager:
         with open(path, "w") as f:
             json.dump(data, f, indent=2, default=str)
 
+    # ── Adversary ────────────────────────────────────────────────────────
+
+    def save_adversary(self, adversary: dict, run_date: date | None = None) -> Path:
+        """Save adversary critique output for a run date."""
+        run_date = run_date or date.today()
+        adversary_dir = self.data_dir / "adversary"
+        adversary_dir.mkdir(parents=True, exist_ok=True)
+        path = adversary_dir / f"{run_date.isoformat()}.json"
+        self._write(path, adversary)
+        return path
+
+    def load_adversary(self, run_date: date) -> dict | None:
+        """Load adversary output for a specific date."""
+        path = self.data_dir / "adversary" / f"{run_date.isoformat()}.json"
+        return self._read(path)
+
+    def load_recent_briefs(self, days: int = 14) -> list[dict]:
+        """Load briefs from the last N days, returning the brief sub-dict for each."""
+        results = []
+        today = date.today()
+        for i in range(days):
+            d = date.fromordinal(today.toordinal() - i)
+            brief = self.load_brief(d)
+            if brief:
+                brief["date"] = d.isoformat()
+                results.append(brief)
+        return results
+
     # ── Context (Liz) ────────────────────────────────────────────────────
 
     def load_context(self) -> dict:
