@@ -3,7 +3,7 @@ Charlie Web — serves briefs and collects feedback.
 """
 import json
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from flask import Flask, render_template_string, request, jsonify, redirect, url_for
 from core.config import config
@@ -1046,7 +1046,7 @@ def submit_adversary_feedback():
     entry = {
         "id": f"af_{date_str}_{category}_{finding_index}",
         "adversary_date": adversary_date_str,
-        "submitted_at": datetime.utcnow().isoformat() + "Z",
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
         "category": category,
         "finding_index": finding_index,
         "disposition": disposition,
