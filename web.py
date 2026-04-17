@@ -149,6 +149,7 @@ BRIEF_TEMPLATE = """<!DOCTYPE html>
     .rating, .nav, .date-nav { display: none; }
   }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -337,6 +338,7 @@ ARCHIVE_TEMPLATE = """<!DOCTYPE html>
   .brief-tiers .tier-label { color: #999; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
   .brief-meta { font-size: 12px; color: #999; margin-top: 8px; }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -392,6 +394,7 @@ RUN_TEMPLATE = """<!DOCTYPE html>
   .run-box { margin-top: 24px; padding: 24px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
   .run-box p { font-size: 15px; color: #333; margin-bottom: 16px; }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -427,6 +430,7 @@ RUNNING_TEMPLATE = """<!DOCTYPE html>
   .status-box p { font-size: 15px; color: #333; margin-bottom: 12px; }
   .status-box .hint { font-size: 13px; color: #999; }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -523,6 +527,7 @@ COMPANION_TEMPLATE = """<!DOCTYPE html>
   .dc-done { font-size: 14px; color: #27ae60; padding: 6px 0; }
   .dc-done a { color: #27ae60; font-size: 13px; }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -1201,6 +1206,7 @@ REVIEW_TEMPLATE = """<!DOCTYPE html>
   .status-discarded { padding: 16px 20px; background: #f5f5f5; color: #999; border-radius: 6px;
                       font-size: 14px; margin-bottom: 24px; }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -1449,6 +1455,7 @@ THESIS_TEMPLATE = """<!DOCTYPE html>
 
   @media (max-width: 500px) { .ip-grid { grid-template-columns: 1fr; } }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -1574,6 +1581,7 @@ BOOK_TEMPLATE = """<!DOCTYPE html>
   .questions h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 16px; }
   .question-item { font-size: 14px; color: #333; padding: 8px 0 8px 16px; border-left: 2px solid #3D5A80; margin-bottom: 8px; }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
