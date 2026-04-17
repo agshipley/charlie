@@ -3,6 +3,8 @@ Charlie Web — serves briefs and collects feedback.
 """
 import json
 import os
+import time
+from collections import defaultdict, deque
 from datetime import date, datetime, timezone
 from pathlib import Path
 from flask import Flask, render_template_string, request, jsonify, redirect, url_for
@@ -1898,6 +1900,60 @@ def force_seed():
             results.append(f"Copied {rel} → {dest}")
 
     return "<br>".join(results) if results else "No files to seed"
+
+
+# ── Client Error Capture ─────────────────────────────────────────────────
+
+_client_error_rl: dict = defaultdict(deque)
+_RL_WINDOW = 300   # 5 minutes
+_RL_MAX = 50
+
+
+def _rl_check(key: tuple) -> bool:
+    """Return True if this key is over the rate limit (caller should drop)."""
+    now = time.monotonic()
+    q = _client_error_rl[key]
+    while q and q[0] < now - _RL_WINDOW:
+        q.popleft()
+    if len(q) >= _RL_MAX:
+        return True
+    q.append(now)
+    return False
+
+
+@app.route("/api/client-error", methods=["POST"])
+def api_client_error():
+    """Receive a frontend error report and write it to the log stream."""
+    data = request.get_json(silent=True)
+    if data is None:
+        _log.warning("client_error_bad_payload", reason="malformed_json",
+                     remote_addr=request.remote_addr)
+        return "", 400
+
+    message = str(data.get("message") or "")
+    if not message:
+        return "", 400
+
+    rl_key = (
+        str(data.get("source") or ""),
+        int(data.get("lineno") or 0),
+        int(data.get("colno") or 0),
+    )
+    if _rl_check(rl_key):
+        return "", 200  # silently drop — over rate limit
+
+    _log.error("client_error",
+        message=message[:500],
+        source=str(data.get("source") or "")[:200],
+        lineno=data.get("lineno"),
+        colno=data.get("colno"),
+        stack=str(data.get("stack") or "")[:2000],
+        url=str(data.get("url") or "")[:500],
+        user_agent=str(data.get("user_agent") or "")[:300],
+        event_type=str(data.get("event_type") or "error"),
+        context=data.get("context") or {},
+    )
+    return "", 200
 
 
 # ── Admin Logs ────────────────────────────────────────────────────────────
