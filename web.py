@@ -807,7 +807,8 @@ async function submitAdvFeedback(category, findingIndex, adversaryDate) {
       }
     } else {
       if (btn) btn.disabled = false;
-      alert('Something went wrong. Please try again.');
+      const errBody = await resp.json().catch(() => ({}));
+      alert(errBody.error || 'Something went wrong. Please try again.');
     }
   } catch(e) {
     if (btn) btn.disabled = false;
