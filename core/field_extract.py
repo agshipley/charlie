@@ -167,13 +167,30 @@ def _extract_xlsx(path: Path) -> dict:
                 if any(c.strip() for c in str_row):
                     rows.append(str_row)
 
+            # Separate first row as headers if it contains string-only values
+            # (i.e. looks like a header row rather than data)
+            headers = None
+            data_rows = rows
+            if rows:
+                first = rows[0]
+                if first and all(
+                    isinstance(cell, str) and not cell.replace(".", "").replace("-", "").isdigit()
+                    for cell in first if cell.strip()
+                ):
+                    headers = first
+                    data_rows = rows[1:]
+
             content_lines = ["\t".join(r) for r in rows]
             sections.append({
                 "heading": sheet_name,
                 "level": 1,
                 "content": "\n".join(content_lines),
             })
-            tables.append({"section_index": len(sections) - 1, "rows": rows})
+            tables.append({
+                "section_index": len(sections) - 1,
+                "headers": headers,
+                "rows": data_rows,
+            })
         except Exception as exc:
             notes.append(f"Sheet {sheet_name!r} parse error: {exc}")
 
