@@ -596,7 +596,7 @@ COMPANION_TEMPLATE = """<!DOCTYPE html>
       </div>
     </div>
 
-    <button class="submit-btn" onclick="submitTier('{{ tier_key }}', '{{ tier.open_question | default('') | e }}', '{{ brief_date }}')">Submit</button>
+    <button class="submit-btn" data-question="{{ tier.open_question | default('') | e }}" onclick="submitTier('{{ tier_key }}', this.dataset.question, '{{ brief_date }}')">Submit</button>
     <div class="confirmation" id="confirm-{{ tier_key }}">Saved. Thank you.</div>
     <div class="error-msg" id="error-{{ tier_key }}">Something went wrong. Please try again.</div>
 
