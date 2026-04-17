@@ -7,15 +7,19 @@ import time
 from collections import defaultdict, deque
 from datetime import date, datetime, timezone
 from pathlib import Path
-from flask import Flask, render_template_string, request, jsonify, redirect, url_for
+import re
+import uuid
+from flask import Flask, render_template_string, request, jsonify, redirect, url_for, send_file
 from core.config import config
 from core.state import StateManager
 from core.logging import configure_logging, get_logger
+from core.field_extract import extract_artifact
 
 configure_logging()
 _log = get_logger(__name__)
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024  # 25 MB upload limit
 state = StateManager()
 _log.info("app_started", mode="web")
 
@@ -60,7 +64,7 @@ def nav_html(active: str) -> str:
   <a href="/" class="{'active' if active == 'brief' else ''}">The Morning Loaf</a>
   <a href="/companion" class="{'active' if active == 'companion' else ''}">Companion</a>
   <a href="/thesis" class="{'active' if active == 'thesis' else ''}">Far Mar</a>
-  <a href="/book" class="{'active' if active == 'book' else ''}">The Field</a>
+  <a href="/field" class="{'active' if active == 'field' else ''}">The Field</a>
   <a href="/archive" class="{'active' if active == 'archive' else ''}">Archive</a>
   <a href="/run" class="{'active' if active == 'run' else ''}">Run</a>
 </div>"""
@@ -1580,6 +1584,27 @@ BOOK_TEMPLATE = """<!DOCTYPE html>
   .questions { margin-top: 36px; border-top: 2px solid #e0e0e0; padding-top: 24px; }
   .questions h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 16px; }
   .question-item { font-size: 14px; color: #333; padding: 8px 0 8px 16px; border-left: 2px solid #3D5A80; margin-bottom: 8px; }
+
+  /* Field Work section */
+  .field-section { margin-top: 48px; border-top: 2px solid #e0e0e0; padding-top: 28px; }
+  .field-section h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 20px; }
+  .upload-area { background: #f9f9f9; border: 2px dashed #ccc; border-radius: 8px; padding: 28px 24px; margin-bottom: 28px; }
+  .upload-area label { display: block; font-size: 14px; color: #555; margin-bottom: 10px; }
+  .upload-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+  .upload-row input[type=file] { flex: 1; min-width: 0; font-size: 13px; }
+  .upload-row input[type=text] { flex: 2; min-width: 200px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; font-family: inherit; }
+  .upload-row button { padding: 8px 18px; background: #3D5A80; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .upload-row button:hover { background: #2e4565; }
+  #upload-status { margin-top: 12px; font-size: 13px; color: #555; min-height: 18px; }
+  .artifact-list { }
+  .artifact-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; margin-bottom: 8px; transition: border-color 0.15s; }
+  .artifact-item:hover { border-color: #3D5A80; }
+  .artifact-info { flex: 1; min-width: 0; }
+  .artifact-name { font-size: 14px; font-weight: 600; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .artifact-meta { font-size: 12px; color: #999; margin-top: 2px; }
+  .artifact-links { display: flex; gap: 10px; flex-shrink: 0; margin-left: 16px; }
+  .artifact-links a { font-size: 12px; color: #3D5A80; text-decoration: none; }
+  .artifact-links a:hover { text-decoration: underline; }
 </style>
 <script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
@@ -1642,8 +1667,87 @@ BOOK_TEMPLATE = """<!DOCTYPE html>
   <p class="empty">No book project data available.</p>
   {% endif %}
 
+  <div class="field-section">
+    <h3>Field Work</h3>
+
+    <div class="upload-area">
+      <label>Upload a document to extract and store as field material.</label>
+      <div class="upload-row">
+        <input type="file" id="fw-file" accept=".docx,.xlsx,.pdf,.pptx,.md,.txt">
+        <input type="text" id="fw-note" placeholder="Brief note about this document (optional)">
+        <button onclick="uploadFieldWork()">Upload</button>
+      </div>
+      <div id="upload-status"></div>
+    </div>
+
+    <div class="artifact-list" id="artifact-list">
+      {% if artifacts %}
+      {% for a in artifacts %}
+      <div class="artifact-item">
+        <div class="artifact-info">
+          <div class="artifact-name">{{ a.title or a.filename }}</div>
+          <div class="artifact-meta">{{ a.format | upper }} &middot; {{ a.word_count or '—' }} words &middot; {{ a.uploaded_at[:10] if a.uploaded_at else '' }}</div>
+        </div>
+        <div class="artifact-links">
+          <a href="/field/work/{{ a.id }}">View</a>
+          <a href="/field/originals/{{ a.id }}" download="{{ a.filename }}">Download</a>
+        </div>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p class="empty" id="no-artifacts-msg">No field materials uploaded yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
   <div class="footer">Charlie — Entertainment Industry Intelligence</div>
 </div>
+<script>
+function uploadFieldWork() {
+  var fileInput = document.getElementById('fw-file');
+  var noteInput = document.getElementById('fw-note');
+  var status = document.getElementById('upload-status');
+  var file = fileInput.files[0];
+  if (!file) { status.textContent = 'Select a file first.'; return; }
+
+  status.textContent = 'Uploading\u2026';
+  var formData = new FormData();
+  formData.append('file', file);
+  formData.append('note', noteInput.value.trim());
+
+  fetch('/api/field/upload', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.status === 'ok') {
+        status.textContent = 'Uploaded: ' + data.filename;
+        fileInput.value = '';
+        noteInput.value = '';
+        var noMsg = document.getElementById('no-artifacts-msg');
+        if (noMsg) noMsg.remove();
+        var list = document.getElementById('artifact-list');
+        var item = document.createElement('div');
+        item.className = 'artifact-item';
+        item.innerHTML = '<div class="artifact-info">'
+          + '<div class="artifact-name">' + (data.title || data.filename) + '</div>'
+          + '<div class="artifact-meta">' + (data.format || '').toUpperCase()
+          + ' \u00b7 ' + (data.word_count || '\u2014') + ' words'
+          + ' \u00b7 ' + (data.uploaded_at || '').slice(0,10) + '</div>'
+          + '</div>'
+          + '<div class="artifact-links">'
+          + '<a href="/field/work/' + data.id + '">View</a>'
+          + '<a href="/field/originals/' + data.id + '" download="' + data.filename + '">Download</a>'
+          + '</div>';
+        list.insertBefore(item, list.firstChild);
+      } else {
+        status.textContent = 'Error: ' + (data.message || 'unknown error');
+      }
+    })
+    .catch(function(err) {
+      status.textContent = 'Upload failed: ' + err.message;
+      if (window.reportClientError) window.reportClientError('field upload failed', { error: String(err) });
+    });
+}
+</script>
 </body>
 </html>"""
 
@@ -1751,13 +1855,20 @@ def discard_proposal():
 
 
 @app.route("/book")
-def show_book():
-    _log.debug("request_received", route="/book", method="GET")
+def redirect_book():
+    return redirect(url_for("show_field"), code=301)
+
+
+@app.route("/field")
+def show_field():
+    _log.debug("request_received", route="/field", method="GET")
     thesis = state.load_thesis()
     if not thesis:
         _ensure_thesis_seed()
         thesis = state.load_thesis()
-    return render_template_string(BOOK_TEMPLATE, thesis=thesis, nav=nav_html("book"))
+    artifacts = state.list_field_artifacts()
+    _log.info("request_completed", route="/field", method="GET", artifacts=len(artifacts))
+    return render_template_string(BOOK_TEMPLATE, thesis=thesis, nav=nav_html("field"), artifacts=artifacts)
 
 
 def _ensure_thesis_seed():
@@ -1769,6 +1880,231 @@ def _ensure_thesis_seed():
     with open(path, "w") as f:
         json.dump(seed, f, indent=2, ensure_ascii=False)
     print(f"[Seed] Wrote thesis seed to {path}")
+
+
+# ── Field Work Templates & Routes ────────────────────────────────────────────
+
+FIELD_WORK_DETAIL_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charlie — {{ artifact.title or artifact.filename }}</title>
+<style>
+  """ + SHARED_STYLES + """
+  .back-link { font-size: 13px; color: #3D5A80; text-decoration: none; display: inline-block; margin-bottom: 20px; }
+  .back-link:hover { text-decoration: underline; }
+  .artifact-header { margin-bottom: 28px; }
+  .artifact-header h2 { font-size: 22px; margin-bottom: 6px; }
+  .artifact-meta { font-size: 13px; color: #999; }
+  .artifact-note { font-size: 14px; color: #555; margin-top: 8px; font-style: italic; }
+  .section-block { background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 20px 24px; margin-bottom: 16px; }
+  .section-block h3 { font-size: 15px; color: #1a1a1a; margin-bottom: 10px; }
+  .section-block h3.level-1 { font-size: 17px; }
+  .section-block h3.level-2 { font-size: 15px; }
+  .section-block h3.level-3 { font-size: 14px; color: #444; }
+  .section-content { font-size: 14px; color: #333; line-height: 1.7; white-space: pre-wrap; }
+  .table-block { margin-top: 16px; overflow-x: auto; }
+  .table-block table { border-collapse: collapse; font-size: 13px; width: 100%; }
+  .table-block th, .table-block td { border: 1px solid #e0e0e0; padding: 6px 10px; text-align: left; }
+  .table-block th { background: #f5f5f5; font-weight: 600; }
+  .notes-block { background: #fef9e7; border: 1px solid #f0d080; border-radius: 6px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px; color: #7a6000; }
+  .notes-block ul { margin: 6px 0 0 18px; padding: 0; }
+  .download-link { display: inline-block; margin-bottom: 20px; font-size: 13px; color: #3D5A80; text-decoration: none; }
+  .download-link:hover { text-decoration: underline; }
+</style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Field Work</h1>
+  </div>
+  {{ nav | safe }}
+
+  <a class="back-link" href="/field">&larr; Back to The Field</a>
+
+  <div class="artifact-header">
+    <h2>{{ artifact.title or artifact.filename }}</h2>
+    <div class="artifact-meta">
+      {{ artifact.format | upper if artifact.format else '' }}
+      {% if artifact.word_count %}&middot; {{ artifact.word_count }} words{% endif %}
+      {% if artifact.uploaded_at %}&middot; {{ artifact.uploaded_at[:10] }}{% endif %}
+    </div>
+    {% if artifact.note %}
+    <div class="artifact-note">{{ artifact.note }}</div>
+    {% endif %}
+    <a class="download-link" href="/field/originals/{{ artifact.id }}" download="{{ artifact.filename }}">Download original</a>
+  </div>
+
+  {% if extracted and extracted.extraction_notes %}
+  <div class="notes-block">
+    <strong>Extraction notes:</strong>
+    <ul>{% for n in extracted.extraction_notes %}<li>{{ n }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  {% if extracted and extracted.sections %}
+  {% for section in extracted.sections %}
+  <div class="section-block">
+    {% if section.heading %}
+    <h3 class="level-{{ section.level or 1 }}">{{ section.heading }}</h3>
+    {% endif %}
+    {% if section.content %}
+    <div class="section-content">{{ section.content }}</div>
+    {% endif %}
+    {% if extracted.tables %}
+    {% for tbl in extracted.tables %}
+    {% if tbl.section_index == loop.index0 and tbl.rows %}
+    <div class="table-block">
+      <table>
+        {% for row in tbl.rows %}
+        {% if loop.first %}
+        <tr>{% for cell in row %}<th>{{ cell }}</th>{% endfor %}</tr>
+        {% else %}
+        <tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>
+        {% endif %}
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="empty">No extracted content available.</p>
+  {% endif %}
+
+  <div class="footer">Charlie — Entertainment Industry Intelligence</div>
+</div>
+</body>
+</html>"""
+
+
+_ALLOWED_EXTENSIONS = {"docx", "xlsx", "pdf", "pptx", "md", "txt"}
+
+
+def _safe_filename(filename: str) -> str:
+    """Sanitize upload filename: keep extension, replace unsafe chars."""
+    filename = os.path.basename(filename)
+    filename = re.sub(r"[^\w.\-]", "_", filename)
+    return filename[:200] or "upload"
+
+
+@app.route("/field/work/<artifact_id>")
+def show_field_work(artifact_id: str):
+    _log.debug("request_received", route="/field/work/<id>", method="GET", artifact_id=artifact_id)
+    artifact = state.load_field_artifact(artifact_id)
+    if not artifact:
+        return "Not found", 404
+    extracted = state.load_field_extracted(artifact_id)
+    _log.info("request_completed", route="/field/work/<id>", method="GET", artifact_id=artifact_id)
+    return render_template_string(
+        FIELD_WORK_DETAIL_TEMPLATE,
+        artifact=artifact,
+        extracted=extracted,
+        nav=nav_html("field"),
+    )
+
+
+@app.route("/field/originals/<artifact_id>")
+def download_field_original(artifact_id: str):
+    _log.debug("request_received", route="/field/originals/<id>", method="GET", artifact_id=artifact_id)
+    artifact = state.load_field_artifact(artifact_id)
+    if not artifact:
+        return "Not found", 404
+    original_path = config.field_dir / "originals" / artifact["stored_filename"]
+    if not original_path.exists():
+        return "File not found", 404
+    _log.info("request_completed", route="/field/originals/<id>", method="GET", artifact_id=artifact_id)
+    return send_file(original_path, as_attachment=True, download_name=artifact.get("filename", artifact["stored_filename"]))
+
+
+@app.route("/api/field/upload", methods=["POST"])
+def upload_field_work():
+    _log.info("request_received", route="/api/field/upload", method="POST")
+
+    if "file" not in request.files:
+        return jsonify({"status": "error", "message": "No file provided"}), 400
+
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"status": "error", "message": "Empty filename"}), 400
+
+    ext = f.filename.rsplit(".", 1)[-1].lower() if "." in f.filename else ""
+    if ext not in _ALLOWED_EXTENSIONS:
+        return jsonify({"status": "error", "message": f"Unsupported format: {ext!r}. Allowed: {', '.join(sorted(_ALLOWED_EXTENSIONS))}"}), 400
+
+    note = request.form.get("note", "").strip()[:500]
+    artifact_id = str(uuid.uuid4())
+    safe_name = _safe_filename(f.filename)
+    stored_filename = f"{artifact_id}.{ext}"
+    original_path = config.field_dir / "originals" / stored_filename
+
+    # Save the binary file atomically
+    tmp_path = original_path.with_suffix(original_path.suffix + ".tmp")
+    try:
+        original_path.parent.mkdir(parents=True, exist_ok=True)
+        f.save(str(tmp_path))
+        os.replace(tmp_path, original_path)
+    except Exception as exc:
+        _log.error("field_upload_save_failed", artifact_id=artifact_id, exc_info=True)
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+        return jsonify({"status": "error", "message": "Failed to save file"}), 500
+
+    # Extract content
+    extracted = None
+    extraction_error = None
+    try:
+        extracted = extract_artifact(artifact_id, original_path, ext)
+    except Exception as exc:
+        extraction_error = str(exc)
+        _log.error("field_extract_failed", artifact_id=artifact_id, ext=ext, exc_info=True)
+
+    title = None
+    word_count = None
+    if extracted:
+        title = extracted.get("title_extracted")
+        word_count = extracted.get("word_count")
+        try:
+            state.save_field_extracted(artifact_id, extracted)
+        except Exception as exc:
+            _log.error("field_save_extracted_failed", artifact_id=artifact_id, exc_info=True)
+
+    now = datetime.now(timezone.utc).isoformat()
+    artifact = {
+        "id": artifact_id,
+        "filename": safe_name,
+        "stored_filename": stored_filename,
+        "format": ext,
+        "title": title,
+        "note": note,
+        "word_count": word_count,
+        "uploaded_at": now,
+        "extraction_error": extraction_error,
+    }
+
+    try:
+        state.save_field_artifact(artifact)
+    except Exception as exc:
+        _log.error("field_save_artifact_failed", artifact_id=artifact_id, exc_info=True)
+        return jsonify({"status": "error", "message": "Failed to save artifact metadata"}), 500
+
+    _log.info("request_completed", route="/api/field/upload", method="POST",
+              artifact_id=artifact_id, ext=ext, word_count=word_count)
+    return jsonify({
+        "status": "ok",
+        "id": artifact_id,
+        "filename": safe_name,
+        "format": ext,
+        "title": title,
+        "word_count": word_count,
+        "uploaded_at": now,
+    })
 
 
 @app.route("/api/feedback", methods=["POST"])

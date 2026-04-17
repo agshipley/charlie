@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from .config import config
@@ -288,7 +289,73 @@ class StateManager:
                 context[name] = data
         return context
 
+    # ── Field Work ───────────────────────────────────────────────────────
+
+    def save_field_artifact(self, artifact: dict) -> Path:
+        """Save a field artifact metadata record."""
+        path = config.field_dir / "artifacts" / f"{artifact['id']}.json"
+        _log.debug("state_write_attempt", method="save_field_artifact", path=str(path))
+        try:
+            self._atomic_write_json(path, artifact)
+        except Exception:
+            _log.error("state_write_failed", method="save_field_artifact", path=str(path), exc_info=True)
+            raise
+        return path
+
+    def load_field_artifact(self, artifact_id: str) -> dict | None:
+        """Load a single field artifact by ID."""
+        path = config.field_dir / "artifacts" / f"{artifact_id}.json"
+        return self._read(path)
+
+    def list_field_artifacts(self) -> list[dict]:
+        """Return all field artifacts sorted newest first."""
+        artifacts_dir = config.field_dir / "artifacts"
+        if not artifacts_dir.exists():
+            return []
+        artifacts = []
+        for p in artifacts_dir.glob("*.json"):
+            data = self._read(p)
+            if data:
+                artifacts.append(data)
+        artifacts.sort(key=lambda a: a.get("uploaded_at", ""), reverse=True)
+        return artifacts
+
+    def save_field_extracted(self, artifact_id: str, extracted: dict) -> Path:
+        """Save extracted content for a field artifact."""
+        path = config.field_dir / "extracted" / f"{artifact_id}.json"
+        _log.debug("state_write_attempt", method="save_field_extracted", path=str(path))
+        try:
+            self._atomic_write_json(path, extracted)
+        except Exception:
+            _log.error("state_write_failed", method="save_field_extracted", path=str(path), exc_info=True)
+            raise
+        return path
+
+    def load_field_extracted(self, artifact_id: str) -> dict | None:
+        """Load extracted content for a field artifact."""
+        path = config.field_dir / "extracted" / f"{artifact_id}.json"
+        return self._read(path)
+
     # ── Utilities ────────────────────────────────────────────────────────
+
+    def _atomic_write_json(self, path: Path, data: dict) -> None:
+        """Write JSON atomically: write to .tmp, fsync, then os.replace."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, default=str)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+            _log.info("state_write_success", method="_atomic_write_json", path=str(path))
+        except Exception:
+            _log.error("state_write_failed", method="_atomic_write_json", path=str(path), exc_info=True)
+            try:
+                tmp.unlink(missing_ok=True)
+            except Exception:
+                pass
+            raise
 
     def _read(self, path: Path) -> dict | None:
         if path.exists():
