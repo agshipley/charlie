@@ -764,6 +764,7 @@ function submitTier(tier, question, briefDate) {
 
 // Dark Comprandon toggle
 const DC_KEY = 'dc_toggle';
+const DC_KEY = 'charlie_dc_on';
 function initDC() {
   const on = localStorage.getItem(DC_KEY) === '1';
   const section = document.getElementById('dc-section');
