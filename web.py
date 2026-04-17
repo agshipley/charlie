@@ -13,6 +13,7 @@ from core.config import config
 from core.state import StateManager
 from core.logging import configure_logging, get_logger
 from core.field_extract import extract_artifact
+from agents.acknowledge import run_acknowledge, load_acknowledgment
 
 configure_logging()
 _log = get_logger(__name__)
@@ -1764,11 +1765,12 @@ function uploadFieldWork() {
   formData.append('description', descInput.value.trim());
 
   fetch('/api/field/upload', { method: 'POST', body: formData })
-    .then(function(r) { return r.json(); })
+    .then(function(r) {
+      btn.textContent = 'Charlie is reading your work\u2026';
+      return r.json();
+    })
     .then(function(data) {
       if (data.status === 'ok') {
-        btn.textContent = 'Extracting\u2026';
-        // Extraction already done server-side; redirect to detail page
         window.location.href = '/field/work/' + data.id;
       } else {
         errEl.textContent = data.message || 'Upload failed.';
@@ -1962,9 +1964,30 @@ FIELD_WORK_DETAIL_TEMPLATE = """<!DOCTYPE html>
   .table-block th, .table-block td { border: 1px solid #e0e0e0; padding: 6px 10px; text-align: left; vertical-align: top; }
   .table-block th { background: #f5f5f5; font-weight: 600; }
 
-  .ack-section { margin-top: 40px; border-top: 2px solid #e0e0e0; padding-top: 24px; }
-  .ack-section h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 12px; }
+  .ack-section { margin-top: 48px; border-top: 2px solid #e0e0e0; padding-top: 28px; }
+  .ack-section > h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 24px; }
   .ack-placeholder { font-size: 14px; color: #bbb; font-style: italic; }
+  .ack-generating { font-size: 14px; color: #555; }
+  .ack-retry-btn { margin-top: 12px; padding: 8px 18px; background: #3D5A80; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
+  .ack-retry-btn:hover { background: #2e4565; }
+  .ack-block { margin-bottom: 28px; }
+  .ack-block h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin: 0 0 10px; }
+  .ack-prose { font-size: 15px; color: #222; line-height: 1.75; }
+  .ack-framework { margin-bottom: 14px; padding: 14px 16px; background: white; border: 1px solid #e8e8e8; border-radius: 6px; }
+  .ack-framework-name { font-size: 14px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
+  .ack-framework-claim { font-size: 14px; color: #333; line-height: 1.6; }
+  .ack-framework-source { font-size: 12px; color: #bbb; margin-top: 4px; }
+  .ack-connection { margin-bottom: 14px; padding: 14px 16px; background: white; border: 1px solid #e8e8e8; border-radius: 6px; }
+  .ack-connection-claim { font-size: 13px; color: #555; font-style: italic; margin-bottom: 6px; }
+  .ack-rel-tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-right: 8px; font-weight: 600; }
+  .rel-supports { background: #d5f5e3; color: #1e8449; }
+  .rel-extends { background: #d6eaf8; color: #1a5276; }
+  .rel-challenges { background: #fde8e8; color: #922b21; }
+  .rel-adjacent { background: #f2f3f4; color: #7f8c8d; }
+  .ack-connection-reasoning { font-size: 14px; color: #333; line-height: 1.6; }
+  .ack-questions ol { margin: 0; padding-left: 20px; }
+  .ack-questions li { font-size: 14px; color: #333; line-height: 1.7; margin-bottom: 8px; }
+  .ack-meta { margin-top: 24px; font-size: 12px; color: #bbb; border-top: 1px solid #f0f0f0; padding-top: 12px; }
 </style>
 <script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
@@ -2060,11 +2083,107 @@ FIELD_WORK_DETAIL_TEMPLATE = """<!DOCTYPE html>
 
   <div class="ack-section">
     <h3>Charlie's First Read</h3>
-    <p class="ack-placeholder">Acknowledgment pending — this section will be populated when the acknowledgment agent runs.</p>
+
+    {% if artifact.acknowledgment_status == 'generating' %}
+    <p class="ack-generating">Charlie is reading this document. This may take up to 90 seconds. <a href="">Refresh the page to check status.</a></p>
+
+    {% elif artifact.acknowledgment_status == 'failed' %}
+    <p style="color:#c0392b;font-size:14px;">Acknowledgment generation failed.</p>
+    {% if artifact.acknowledgment_error %}
+    <div style="font-size:13px;font-family:monospace;background:#fde8e8;padding:10px 14px;border-radius:4px;color:#922b21;margin-bottom:12px;">{{ artifact.acknowledgment_error }}</div>
+    {% endif %}
+    <button class="ack-retry-btn" onclick="retryAcknowledgment('{{ artifact.id }}')">Retry acknowledgment</button>
+    <div id="retry-status" style="margin-top:10px;font-size:13px;color:#555;"></div>
+
+    {% elif artifact.acknowledgment_status == 'complete' and acknowledgment %}
+    {% set secs = acknowledgment %}
+    {% set s = acknowledgment.sections %}
+
+    <div class="ack-block">
+      <h4>What I read this to be arguing</h4>
+      <p class="ack-prose">{{ s.what_i_read_this_to_be_arguing }}</p>
+    </div>
+
+    {% if s.frameworks_extracted %}
+    <div class="ack-block">
+      <h4>Frameworks extracted</h4>
+      {% for fw in s.frameworks_extracted %}
+      <div class="ack-framework">
+        <div class="ack-framework-name">{{ fw.name }}</div>
+        <div class="ack-framework-claim">{{ fw.claim }}</div>
+        {% if fw.source_section %}<div class="ack-framework-source">Source: {{ fw.source_section }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="ack-block">
+      <h4>Empirical foundation</h4>
+      <p class="ack-prose">{{ s.empirical_foundation }}</p>
+    </div>
+
+    {% if s.connections_to_current_thesis %}
+    <div class="ack-block">
+      <h4>Connections to current thesis</h4>
+      {% for conn in s.connections_to_current_thesis %}
+      <div class="ack-connection">
+        <div class="ack-connection-claim">&ldquo;{{ conn.thesis_claim }}&rdquo;</div>
+        <span class="ack-rel-tag rel-{{ conn.relationship }}">{{ conn.relationship }}</span>
+        <span class="ack-connection-reasoning">{{ conn.reasoning }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if s.open_questions %}
+    <div class="ack-block ack-questions">
+      <h4>Open questions</h4>
+      <ol>
+        {% for q in s.open_questions %}<li>{{ q }}</li>{% endfor %}
+      </ol>
+    </div>
+    {% endif %}
+
+    {% set notes = acknowledgment.generation_notes %}
+    <div class="ack-meta">
+      Generated {{ acknowledgment.generated_at[:10] if acknowledgment.generated_at else '' }}
+      &middot; {{ notes.duration_seconds }}s
+      &middot; {{ notes.model }}
+      &middot; {{ notes.word_count_read }} words read
+    </div>
+
+    {% else %}
+    <p class="ack-placeholder">Acknowledgment pending.</p>
+    {% endif %}
   </div>
 
   <div class="footer">Charlie — Entertainment Industry Intelligence</div>
 </div>
+<script>
+function retryAcknowledgment(artifactId) {
+  var btn = document.querySelector('.ack-retry-btn');
+  var status = document.getElementById('retry-status');
+  btn.disabled = true;
+  btn.textContent = 'Charlie is reading\u2026';
+  status.textContent = 'This may take up to 90 seconds.';
+  fetch('/api/field/work/' + artifactId + '/reacknowledge', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.acknowledgment_status === 'complete') {
+        window.location.reload();
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Retry acknowledgment';
+        status.textContent = 'Failed: ' + (data.acknowledgment_error || 'unknown error');
+      }
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.textContent = 'Retry acknowledgment';
+      status.textContent = 'Request failed: ' + err.message;
+    });
+}
+</script>
 </body>
 </html>"""
 
@@ -2101,13 +2220,51 @@ def show_field_work(artifact_id: str):
     if not artifact:
         return "Not found", 404
     extracted = state.load_field_extracted(artifact_id)
+    acknowledgment = load_acknowledgment(artifact_id)
     _log.info("request_completed", route="/field/work/<id>", method="GET", artifact_id=artifact_id)
     return render_template_string(
         FIELD_WORK_DETAIL_TEMPLATE,
         artifact=artifact,
         extracted=extracted,
+        acknowledgment=acknowledgment,
         nav=nav_html("field"),
     )
+
+
+@app.route("/api/field/work/<artifact_id>/reacknowledge", methods=["POST"])
+def api_field_reacknowledge(artifact_id: str):
+    _log.info("request_received", route="/api/field/work/<id>/reacknowledge",
+              method="POST", artifact_id=artifact_id)
+    artifact = state.load_field_artifact(artifact_id)
+    if not artifact:
+        return jsonify({"status": "error", "message": "Artifact not found"}), 404
+    if artifact.get("extraction_status") != "complete":
+        return jsonify({"status": "error", "message": "Extraction must complete before acknowledgment"}), 400
+
+    artifact["acknowledgment_status"] = "generating"
+    artifact.pop("acknowledgment_error", None)
+    state.save_field_artifact(artifact)
+
+    try:
+        run_acknowledge(artifact)
+        ack_path = str(config.field_dir / "acknowledgments" / f"{artifact_id}.json")
+        artifact["acknowledgment_status"] = "complete"
+        artifact["acknowledgment_path"] = ack_path
+    except Exception as exc:
+        _log.error("reacknowledge_failed", artifact_id=artifact_id, exc_info=True)
+        artifact["acknowledgment_status"] = "failed"
+        artifact["acknowledgment_error"] = str(exc)
+
+    state.save_field_artifact(artifact)
+    _log.info("request_completed", route="/api/field/work/<id>/reacknowledge",
+              method="POST", artifact_id=artifact_id,
+              acknowledgment_status=artifact["acknowledgment_status"])
+    return jsonify({
+        "status": "ok",
+        "id": artifact_id,
+        "acknowledgment_status": artifact["acknowledgment_status"],
+        "acknowledgment_error": artifact.get("acknowledgment_error"),
+    })
 
 
 @app.route("/field/originals/<artifact_id>")
@@ -2219,6 +2376,7 @@ def upload_field_work():
         "extraction_error": extraction_error,
         "extracted_path": extracted_path,
         "acknowledgment_status": "pending",
+        "acknowledgment_path": None,
     }
 
     try:
@@ -2227,7 +2385,26 @@ def upload_field_work():
         bound.error("field_save_artifact_failed", exc_info=True)
         return jsonify({"status": "error", "message": "Failed to save artifact metadata"}), 500
 
-    bound.info("upload_complete", extraction_status=extraction_status)
+    # ── Run acknowledgment (synchronous, only if extraction succeeded) ───
+    if extraction_status == "complete":
+        artifact["acknowledgment_status"] = "generating"
+        state.save_field_artifact(artifact)
+
+        try:
+            ack = run_acknowledge(artifact)
+            ack_path = str(config.field_dir / "acknowledgments" / f"{artifact_id}.json")
+            artifact["acknowledgment_status"] = "complete"
+            artifact["acknowledgment_path"] = ack_path
+        except Exception as exc:
+            bound.error("acknowledgment_failed_in_upload", exc_info=True)
+            artifact["acknowledgment_status"] = "failed"
+            artifact["acknowledgment_error"] = str(exc)
+
+        state.save_field_artifact(artifact)
+
+    bound.info("upload_complete",
+               extraction_status=extraction_status,
+               acknowledgment_status=artifact["acknowledgment_status"])
     return jsonify({
         "status": "ok",
         "id": artifact_id,
@@ -2238,7 +2415,7 @@ def upload_field_work():
         "word_count": word_count,
         "uploaded_at": now,
         "extraction_status": extraction_status,
-        "acknowledgment_status": "pending",
+        "acknowledgment_status": artifact["acknowledgment_status"],
     })
 
 

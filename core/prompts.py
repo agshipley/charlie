@@ -418,3 +418,202 @@ def build_adversary_prompt(brief: dict, sessions_last_30: list, briefs_last_14: 
 Critique this brief. Find what's wrong. Return your findings in the specified JSON format."""
 
     return ADVERSARY_SYSTEM_PROMPT, user_message
+
+
+# ── Acknowledgment Prompt ────────────────────────────────────────────────
+
+_ACKNOWLEDGE_SYSTEM_PROMPT = """You are Charlie. You are reading a piece of authored work that \
+Liz Varner has just uploaded to the system. Your job is to produce a structured first-read \
+response that proves you read her work carefully and engages it substantively.
+
+You are not writing a review. You are not evaluating her work. You are a colleague producing \
+a written confirmation-of-receipt after reading the document on the plane — the artifact that \
+tells her "I read this, here is what I understood, here is where it connects to what I've been \
+thinking."
+
+You have access to:
+- The extracted content of her document (sections, tables, full text)
+- The current Charlie thesis (claims, evidence, structure)
+
+You do NOT have access to Liz's profile, active slate, watchlist, or quantitative feedback \
+scores. This is deliberate. Your first read must engage her work on its own terms, not through \
+what you think she cares about.
+
+Produce JSON matching the schema provided. Five sections:
+
+1. what_i_read_this_to_be_arguing — 2-3 sentences in your own prose voice. Cite specific \
+sections from the document. This is the comprehension proof. If you cannot name specifically \
+what the document argues, you did not read it carefully enough.
+
+2. frameworks_extracted — the named concepts, principles, or structural claims she has derived. \
+Each with its own name and a one-sentence statement of the claim. 2-7 frameworks, only as many \
+as genuinely exist. If the document contains a principle she calls "the multi-entry-point \
+principle," extract it with that name — do not rename to something generic.
+
+3. empirical_foundation — honest assessment of the evidence base. Where is the evidence strong? \
+Where does it lean on a single source? Where is assumption doing heavy lifting? Do not flatter. \
+A document resting on one Nielsen report should be named as such, not as "extensive quantitative \
+research."
+
+4. connections_to_current_thesis — where does this work engage with claims in the current \
+Charlie thesis? For each: quote or closely paraphrase the thesis claim, name the relationship \
+(supports / extends / challenges / adjacent), and explain the specific connection in 1-2 \
+sentences. If the work is genuinely adjacent to the thesis and makes no direct contact, say so \
+honestly — do not force connections that aren't there.
+
+5. open_questions — 2-5 specific questions the document didn't resolve. These must be questions \
+whose answers would require further research, not opinion. "What would it look like if this \
+framework held in streaming television specifically" is a good question. "What do you think \
+about this?" is not.
+
+CRITICAL RULES:
+
+- Write in Charlie's voice, not Liz's. Use "I" when referring to yourself. Refer to Liz in \
+third person ("the author," "her argument," "Liz's research") or address the work directly \
+("this document argues").
+
+- Do not flatter. "This is compelling research" is a tell. Skip the evaluation and go straight \
+to engagement.
+
+- Do not summarize. A summary reproduces the document. You are engaging the document — naming \
+what is there, what it does, what it connects to, what it leaves open.
+
+- Cite specifically. If you reference the document's argument, point at the section. Vague \
+reference is worse than no reference.
+
+- Return valid JSON. Nothing else.
+
+The JSON must match this exact schema:
+{
+  "artifact_id": "string",
+  "generated_at": "ISO 8601 UTC",
+  "sections": {
+    "what_i_read_this_to_be_arguing": "string",
+    "frameworks_extracted": [
+      {
+        "name": "string",
+        "claim": "string",
+        "source_section": "string or null"
+      }
+    ],
+    "empirical_foundation": "string",
+    "connections_to_current_thesis": [
+      {
+        "thesis_claim": "string",
+        "relationship": "supports|extends|challenges|adjacent",
+        "reasoning": "string"
+      }
+    ],
+    "open_questions": ["string"]
+  },
+  "generation_notes": {
+    "word_count_read": integer,
+    "duration_seconds": number,
+    "model": "string"
+  }
+}"""
+
+
+def build_acknowledge_prompt(
+    artifact: dict,
+    extracted: dict,
+    thesis: dict,
+) -> tuple[str, str]:
+    """Returns (system_prompt, user_message) for the acknowledgment agent."""
+
+    # Format thesis claims
+    thesis_lines = []
+    core_arg = thesis.get("core_argument", "")
+    if core_arg:
+        thesis_lines.append(f"Core argument: {core_arg}\n")
+
+    claims = thesis.get("claims", [])
+    if claims:
+        thesis_lines.append("## Thesis Claims")
+        for c in claims:
+            confidence = c.get("confidence", "")
+            thesis_lines.append(f"- [{confidence}] {c.get('claim', '')}")
+
+    forces = thesis.get("forces", {})
+    if forces:
+        thesis_lines.append("\n## Force Summaries")
+        for force_name, force_data in forces.items():
+            if isinstance(force_data, dict):
+                summary = force_data.get("summary", "")
+                if summary:
+                    thesis_lines.append(f"\n### {force_name.replace('_', ' ').title()}")
+                    thesis_lines.append(summary)
+
+    thesis_text = "\n".join(thesis_lines)
+
+    # Format sections + tables, with truncation safety net
+    MAX_WORDS = 60000
+    word_count = extracted.get("word_count", 0)
+    sections = extracted.get("sections", [])
+    tables = extracted.get("tables", [])
+    truncated = False
+    original_word_count = word_count
+
+    # Build section blocks
+    section_blocks = []
+    for i, section in enumerate(sections):
+        heading = section.get("heading", "")
+        level = section.get("level", 0)
+        content = section.get("content", "")
+
+        block_lines = []
+        if heading:
+            block_lines.append(f"### {heading} [level: {level}]")
+        if content:
+            block_lines.append(content)
+
+        # Attach tables for this section
+        section_tables = [t for t in tables if t.get("section_index") == i]
+        if section_tables:
+            block_lines.append("\n--- TABLES IN THIS SECTION ---")
+            for tbl in section_tables:
+                rows = tbl.get("rows", [])
+                for row in rows:
+                    block_lines.append(" | ".join(str(c) for c in row))
+
+        section_blocks.append("\n".join(block_lines))
+
+    full_sections_text = "\n\n".join(section_blocks)
+
+    # Truncate if over limit
+    words_in_sections = len(full_sections_text.split())
+    if words_in_sections > MAX_WORDS and len(section_blocks) > 4:
+        truncated = True
+        # Keep first 2 and last 2 sections, summarize middle
+        keep_first = section_blocks[:2]
+        keep_last = section_blocks[-2:]
+        middle_count = len(section_blocks) - 4
+        middle_summary = f"[{middle_count} middle sections omitted for length — {words_in_sections - MAX_WORDS} words truncated]"
+        section_blocks = keep_first + [middle_summary] + keep_last
+        full_sections_text = "\n\n".join(section_blocks)
+
+    user_message = f"""# Artifact metadata
+
+Title: {artifact.get('title', 'Untitled')}
+Type: {artifact.get('type', 'unknown')}
+Description: {artifact.get('description') or 'none'}
+
+# Current Charlie thesis
+
+{thesis_text}
+
+# Extracted document content
+
+Word count: {word_count}
+{"[NOTE: Document was truncated from " + str(original_word_count) + " words to fit context. First and last sections intact.]" if truncated else ""}
+
+## Sections
+
+{full_sections_text}
+
+# Generation instructions
+
+Produce the JSON acknowledgment per the schema. The artifact_id is \"{artifact.get('id', '')}\". \
+Return only valid JSON. No preamble, no postamble."""
+
+    return _ACKNOWLEDGE_SYSTEM_PROMPT, user_message
