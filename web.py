@@ -3,6 +3,8 @@ Charlie Web — serves briefs and collects feedback.
 """
 import json
 import os
+import time
+from collections import defaultdict, deque
 from datetime import date, datetime, timezone
 from pathlib import Path
 from flask import Flask, render_template_string, request, jsonify, redirect, url_for
@@ -147,6 +149,7 @@ BRIEF_TEMPLATE = """<!DOCTYPE html>
     .rating, .nav, .date-nav { display: none; }
   }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -335,6 +338,7 @@ ARCHIVE_TEMPLATE = """<!DOCTYPE html>
   .brief-tiers .tier-label { color: #999; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
   .brief-meta { font-size: 12px; color: #999; margin-top: 8px; }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -390,6 +394,7 @@ RUN_TEMPLATE = """<!DOCTYPE html>
   .run-box { margin-top: 24px; padding: 24px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
   .run-box p { font-size: 15px; color: #333; margin-bottom: 16px; }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -425,6 +430,7 @@ RUNNING_TEMPLATE = """<!DOCTYPE html>
   .status-box p { font-size: 15px; color: #333; margin-bottom: 12px; }
   .status-box .hint { font-size: 13px; color: #999; }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -521,6 +527,7 @@ COMPANION_TEMPLATE = """<!DOCTYPE html>
   .dc-done { font-size: 14px; color: #27ae60; padding: 6px 0; }
   .dc-done a { color: #27ae60; font-size: 13px; }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -1199,6 +1206,7 @@ REVIEW_TEMPLATE = """<!DOCTYPE html>
   .status-discarded { padding: 16px 20px; background: #f5f5f5; color: #999; border-radius: 6px;
                       font-size: 14px; margin-bottom: 24px; }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -1447,6 +1455,7 @@ THESIS_TEMPLATE = """<!DOCTYPE html>
 
   @media (max-width: 500px) { .ip-grid { grid-template-columns: 1fr; } }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -1572,6 +1581,7 @@ BOOK_TEMPLATE = """<!DOCTYPE html>
   .questions h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 16px; }
   .question-item { font-size: 14px; color: #333; padding: 8px 0 8px 16px; border-left: 2px solid #3D5A80; margin-bottom: 8px; }
 </style>
+<script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
@@ -1898,6 +1908,60 @@ def force_seed():
             results.append(f"Copied {rel} → {dest}")
 
     return "<br>".join(results) if results else "No files to seed"
+
+
+# ── Client Error Capture ─────────────────────────────────────────────────
+
+_client_error_rl: dict = defaultdict(deque)
+_RL_WINDOW = 300   # 5 minutes
+_RL_MAX = 50
+
+
+def _rl_check(key: tuple) -> bool:
+    """Return True if this key is over the rate limit (caller should drop)."""
+    now = time.monotonic()
+    q = _client_error_rl[key]
+    while q and q[0] < now - _RL_WINDOW:
+        q.popleft()
+    if len(q) >= _RL_MAX:
+        return True
+    q.append(now)
+    return False
+
+
+@app.route("/api/client-error", methods=["POST"])
+def api_client_error():
+    """Receive a frontend error report and write it to the log stream."""
+    data = request.get_json(silent=True)
+    if data is None:
+        _log.warning("client_error_bad_payload", reason="malformed_json",
+                     remote_addr=request.remote_addr)
+        return "", 400
+
+    message = str(data.get("message") or "")
+    if not message:
+        return "", 400
+
+    rl_key = (
+        str(data.get("source") or ""),
+        int(data.get("lineno") or 0),
+        int(data.get("colno") or 0),
+    )
+    if _rl_check(rl_key):
+        return "", 200  # silently drop — over rate limit
+
+    _log.error("client_error",
+        message=message[:500],
+        source=str(data.get("source") or "")[:200],
+        lineno=data.get("lineno"),
+        colno=data.get("colno"),
+        stack=str(data.get("stack") or "")[:2000],
+        url=str(data.get("url") or "")[:500],
+        user_agent=str(data.get("user_agent") or "")[:300],
+        event_type=str(data.get("event_type") or "error"),
+        context=data.get("context") or {},
+    )
+    return "", 200
 
 
 # ── Admin Logs ────────────────────────────────────────────────────────────
