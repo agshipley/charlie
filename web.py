@@ -532,7 +532,7 @@ COMPANION_TEMPLATE = """<!DOCTYPE html>
   <p class="companion-intro">Respond to today's open questions. Your insights calibrate what Charlie surfaces next.</p>
 
   <div class="dc-toggle-row">
-    <button id="dc-toggle-btn" class="dc-toggle-btn" onclick="toggleDC()">Dark Comprandon: OFF</button>
+    <button id="dc-toggle-btn" class="dc-toggle-btn">Dark Comprandon: OFF</button>
     <span class="dc-toggle-hint">Adversary critique of today's brief</span>
   </div>
 
@@ -764,8 +764,10 @@ function submitTier(tier, question, briefDate) {
 
 // Dark Comprandon toggle
 const DC_KEY = 'charlie_dc_on';
+function lsGet(key) { try { return localStorage.getItem(key); } catch(e) { return null; } }
+function lsSet(key, val) { try { localStorage.setItem(key, val); } catch(e) {} }
 function initDC() {
-  const on = localStorage.getItem(DC_KEY) === '1';
+  const on = lsGet(DC_KEY) === '1';
   const section = document.getElementById('dc-section');
   const btn = document.getElementById('dc-toggle-btn');
   if (section) section.style.display = on ? 'block' : 'none';
@@ -775,8 +777,9 @@ function initDC() {
   }
 }
 function toggleDC() {
-  const on = localStorage.getItem(DC_KEY) === '1';
-  localStorage.setItem(DC_KEY, on ? '0' : '1');
+  console.log('[DC] toggle fired, current:', lsGet(DC_KEY));
+  const on = lsGet(DC_KEY) === '1';
+  lsSet(DC_KEY, on ? '0' : '1');
   initDC();
 }
 
@@ -825,7 +828,11 @@ function reopenAdv(category, findingIndex) {
   if (btn) btn.disabled = false;
 }
 
-document.addEventListener('DOMContentLoaded', initDC);
+document.addEventListener('DOMContentLoaded', function() {
+  initDC();
+  const btn = document.getElementById('dc-toggle-btn');
+  if (btn) btn.addEventListener('click', toggleDC);
+});
 
 function submitFreeform(briefDate) {
   const insight = document.getElementById('insight-freeform').value.trim();
