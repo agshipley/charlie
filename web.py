@@ -8,9 +8,14 @@ from pathlib import Path
 from flask import Flask, render_template_string, request, jsonify, redirect, url_for
 from core.config import config
 from core.state import StateManager
+from core.logging import configure_logging, get_logger
+
+configure_logging()
+_log = get_logger(__name__)
 
 app = Flask(__name__)
 state = StateManager()
+_log.info("app_started", mode="web")
 
 
 # ── Feedback Storage ─────────────────────────────────────────────────────

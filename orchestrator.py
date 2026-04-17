@@ -19,6 +19,7 @@ import sys
 from datetime import date, datetime
 
 from core.config import config
+from core.logging import configure_logging, get_logger
 from core.render import render_brief, render_thesis_proposal
 from agents.ingestion import run_ingestion
 from agents.analysis import run_analysis
@@ -112,6 +113,10 @@ def run_thesis_pipeline(days_back: int = 7):
 
 
 def main():
+    configure_logging()
+    log = get_logger(__name__)
+    log.info("orchestrator_started")
+
     parser = argparse.ArgumentParser(description="Charlie Orchestrator")
     parser.add_argument("--full", action="store_true", help="Run daily pipeline + thesis synthesis")
     parser.add_argument("--thesis", action="store_true", help="Run thesis synthesis only")
