@@ -15,7 +15,10 @@ from datetime import date
 
 from core.client import call_agent
 from core.config import config
+from core.logging import get_logger
 from core.state import StateManager
+
+_log = get_logger(__name__)
 
 
 WEB_SEARCH_TOOL = {
@@ -62,9 +65,12 @@ def run_ingestion(run_date: date | None = None) -> list[dict]:
     """
     Execute an ingestion run using multiple focused search passes.
     """
+    import time
     run_date = run_date or date.today()
     state = StateManager()
     today = run_date.strftime("%B %d, %Y")
+    _log.info("agent_start", agent="ingestion", run_date=run_date.isoformat())
+    _start = time.monotonic()
     print(f"[Ingestion] Starting run for {run_date.isoformat()}")
 
     # Load watchlist for targeted searches
@@ -118,6 +124,8 @@ def run_ingestion(run_date: date | None = None) -> list[dict]:
 
     if not raw_results:
         print("[Ingestion] No results from any search pass.")
+        _log.info("agent_complete", agent="ingestion", run_date=run_date.isoformat(),
+                  signal_count=0, duration_seconds=round(time.monotonic() - _start, 2))
         return []
 
     # Load feedback calibration
@@ -154,6 +162,8 @@ def run_ingestion(run_date: date | None = None) -> list[dict]:
         path = state.save_signals(signals, run_date)
         print(f"[Ingestion] Saved to {path}")
 
+    _log.info("agent_complete", agent="ingestion", run_date=run_date.isoformat(),
+              signal_count=len(signals), duration_seconds=round(time.monotonic() - _start, 2))
     return signals
 
 

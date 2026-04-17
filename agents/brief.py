@@ -11,8 +11,11 @@ from datetime import date
 
 from core.client import call_agent
 from core.config import config
+from core.logging import get_logger
 from core.state import StateManager
 from core.prompts import build_brief_prompt
+
+_log = get_logger(__name__)
 
 
 def run_brief(findings: dict | None = None, run_date: date | None = None) -> dict:
@@ -21,8 +24,11 @@ def run_brief(findings: dict | None = None, run_date: date | None = None) -> dic
 
     Returns the brief dict with tier_1, tier_2, tier_3.
     """
+    import time
     run_date = run_date or date.today()
     state = StateManager()
+    _log.info("agent_start", agent="brief", run_date=run_date.isoformat())
+    _start = time.monotonic()
     print(f"[Brief] Starting generation for {run_date.isoformat()}")
 
     # Load context
@@ -34,6 +40,8 @@ def run_brief(findings: dict | None = None, run_date: date | None = None) -> dic
     # Format findings for the agent
     if findings is None:
         print("[Brief] No findings provided. Cannot generate brief.")
+        _log.info("agent_complete", agent="brief", run_date=run_date.isoformat(),
+                  tiers=0, duration_seconds=round(time.monotonic() - _start, 2))
         return {}
 
     findings_text = json.dumps(findings, indent=2)
@@ -71,6 +79,9 @@ Produce the Brief in the specified JSON format."""
     # Print the brief for visibility
     _print_brief(brief)
 
+    tiers = sum(1 for k in ("tier_1", "tier_2", "tier_3") if brief.get(k))
+    _log.info("agent_complete", agent="brief", run_date=run_date.isoformat(),
+              tiers=tiers, duration_seconds=round(time.monotonic() - _start, 2))
     return brief
 
 

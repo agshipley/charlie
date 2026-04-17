@@ -11,8 +11,11 @@ from datetime import date
 
 from core.client import call_agent
 from core.config import config
+from core.logging import get_logger
 from core.state import StateManager
 from core.prompts import build_analysis_prompt
+
+_log = get_logger(__name__)
 
 
 def get_session_prompt_injection() -> str:
@@ -67,8 +70,11 @@ def run_analysis(signals: list[dict] | None = None, run_date: date | None = None
 
     Returns the analysis result dict with findings.
     """
+    import time
     run_date = run_date or date.today()
     state = StateManager()
+    _log.info("agent_start", agent="analysis", run_date=run_date.isoformat())
+    _start = time.monotonic()
     print(f"[Analysis] Starting run for {run_date.isoformat()}")
 
     # Load signals if not provided
@@ -76,6 +82,8 @@ def run_analysis(signals: list[dict] | None = None, run_date: date | None = None
         signals = state.load_signals(run_date)
         if not signals:
             print("[Analysis] No signals found for today. Aborting.")
+            _log.info("agent_complete", agent="analysis", run_date=run_date.isoformat(),
+                      finding_count=0, duration_seconds=round(time.monotonic() - _start, 2))
             return {"findings": [], "meta": {"signals_analyzed": 0}}
 
     # Load context
@@ -115,7 +123,10 @@ Produce your analysis in the specified JSON format."""
 
     # Parse findings
     analysis = _parse_analysis(result["text"])
-    print(f"[Analysis] Produced {len(analysis.get('findings', []))} findings")
+    finding_count = len(analysis.get("findings", []))
+    print(f"[Analysis] Produced {finding_count} findings")
+    _log.info("agent_complete", agent="analysis", run_date=run_date.isoformat(),
+              finding_count=finding_count, duration_seconds=round(time.monotonic() - _start, 2))
 
     return analysis
 

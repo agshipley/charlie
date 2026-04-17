@@ -891,6 +891,7 @@ function submitFreeform(briefDate) {
 
 @app.route("/")
 def index():
+    _log.debug("request_received", route="/", method="GET")
     briefs_dir = config.briefs_dir
     available = sorted([f.stem for f in briefs_dir.glob("*.json")], reverse=True)
     if available:
@@ -902,6 +903,7 @@ def index():
 
 @app.route("/archive")
 def archive():
+    _log.debug("request_received", route="/archive", method="GET")
     briefs_dir = config.briefs_dir
     available = sorted([f.stem for f in briefs_dir.glob("*.json")], reverse=True)
 
@@ -941,6 +943,7 @@ def archive():
 
 @app.route("/companion")
 def companion():
+    _log.debug("request_received", route="/companion", method="GET")
     briefs_dir = config.briefs_dir
     available = sorted([f.stem for f in briefs_dir.glob("*.json")], reverse=True)
 
@@ -986,6 +989,9 @@ def companion():
 @app.route("/api/companion/session", methods=["POST"])
 def submit_session():
     data = request.json
+    _log.info("request_received", route="/api/companion/session", method="POST",
+              tier=data.get("tier"), brief_date=data.get("brief_date"),
+              disposition=data.get("disposition"))
     tier = data["tier"]
     date_str = data["brief_date"].replace("-", "")
     base_id = f"s_{date_str}_{tier}"
@@ -1020,6 +1026,7 @@ def submit_session():
         "confidence": data.get("confidence", "medium"),
     }
     state.append_session(entry)
+    _log.info("request_completed", route="/api/companion/session", method="POST", id=entry_id)
     return jsonify({"status": "ok", "id": entry_id})
 
 
@@ -1031,6 +1038,9 @@ def submit_adversary_feedback():
     data = request.json
     if not data:
         return jsonify({"error": "No data"}), 400
+    _log.info("request_received", route="/api/adversary/feedback", method="POST",
+              category=data.get("category"), disposition=data.get("disposition"),
+              adversary_date=data.get("adversary_date"))
 
     category = data.get("category", "")
     disposition = data.get("disposition", "")
@@ -1066,11 +1076,13 @@ def submit_adversary_feedback():
         "note": note,
     }
     state.save_adversary_feedback(entry)
+    _log.info("request_completed", route="/api/adversary/feedback", method="POST", id=entry["id"])
     return jsonify(entry), 200
 
 
 @app.route("/brief/<brief_date>")
 def show_brief(brief_date):
+    _log.debug("request_received", route="/brief/<brief_date>", method="GET", brief_date=brief_date)
     briefs_dir = config.briefs_dir
     available = sorted([f.stem for f in briefs_dir.glob("*.json")])
 
@@ -1122,6 +1134,7 @@ def show_brief(brief_date):
 
 @app.route("/api/brief/<brief_date>")
 def api_brief(brief_date):
+    _log.debug("request_received", route="/api/brief/<brief_date>", method="GET", brief_date=brief_date)
     brief_path = config.briefs_dir / f"{brief_date}.json"
     if not brief_path.exists():
         return jsonify({"error": "Brief not found"}), 404
@@ -1627,6 +1640,7 @@ BOOK_TEMPLATE = """<!DOCTYPE html>
 
 @app.route("/thesis")
 def show_thesis():
+    _log.debug("request_received", route="/thesis", method="GET")
     thesis = state.load_thesis()
     if not thesis:
         _ensure_thesis_seed()
@@ -1647,6 +1661,7 @@ def show_thesis():
 
 @app.route("/thesis/review")
 def thesis_review():
+    _log.debug("request_received", route="/thesis/review", method="GET")
     proposal, _ = state.load_latest_proposal()
     proposal_date_display = "No proposal"
     if proposal:
@@ -1662,10 +1677,12 @@ def thesis_review():
 
 @app.route("/api/thesis/annotate", methods=["POST"])
 def annotate_proposal():
+    _log.info("request_received", route="/api/thesis/annotate", method="POST")
     proposal, path = state.load_latest_proposal()
     if not proposal or not path:
         return jsonify({"status": "error", "message": "No proposal found"}), 404
-    for ann in request.json.get("annotations", []):
+    annotations = request.json.get("annotations", [])
+    for ann in annotations:
         item_id = ann["id"]
         section = ann["section"]
         for item in proposal.get(section, []):
@@ -1674,11 +1691,13 @@ def annotate_proposal():
                 item["annotation"] = ann.get("annotation")
                 break
     state.save_proposal_update(proposal, path)
+    _log.info("request_completed", route="/api/thesis/annotate", method="POST", annotation_count=len(annotations))
     return jsonify({"status": "ok"})
 
 
 @app.route("/api/thesis/refine", methods=["POST"])
 def refine_thesis():
+    _log.info("request_received", route="/api/thesis/refine", method="POST")
     proposal, path = state.load_latest_proposal()
     if not proposal or not path:
         return jsonify({"status": "error", "message": "No proposal found"}), 404
@@ -1688,11 +1707,13 @@ def refine_thesis():
     from agents.thesis import refine_proposal
     revised = refine_proposal(proposal, thesis)
     state.save_proposal_update(revised, path)
+    _log.info("request_completed", route="/api/thesis/refine", method="POST", iteration=revised["iteration"])
     return jsonify({"status": "ok", "iteration": revised["iteration"]})
 
 
 @app.route("/api/thesis/publish", methods=["POST"])
 def publish_thesis():
+    _log.info("request_received", route="/api/thesis/publish", method="POST")
     proposal, path = state.load_latest_proposal()
     if not proposal or not path:
         return jsonify({"status": "error", "message": "No proposal found"}), 404
@@ -1701,22 +1722,27 @@ def publish_thesis():
     if success:
         proposal["status"] = "published"
         state.save_proposal_update(proposal, path)
+        _log.info("request_completed", route="/api/thesis/publish", method="POST")
         return jsonify({"status": "ok"})
+    _log.error("request_failed", route="/api/thesis/publish", method="POST", reason="publish_failed")
     return jsonify({"status": "error", "message": "Publish failed"}), 500
 
 
 @app.route("/api/thesis/discard", methods=["POST"])
 def discard_proposal():
+    _log.info("request_received", route="/api/thesis/discard", method="POST")
     proposal, path = state.load_latest_proposal()
     if not proposal or not path:
         return jsonify({"status": "error", "message": "No proposal found"}), 404
     proposal["status"] = "discarded"
     state.save_proposal_update(proposal, path)
+    _log.info("request_completed", route="/api/thesis/discard", method="POST")
     return jsonify({"status": "ok"})
 
 
 @app.route("/book")
 def show_book():
+    _log.debug("request_received", route="/book", method="GET")
     thesis = state.load_thesis()
     if not thesis:
         _ensure_thesis_seed()
@@ -1738,12 +1764,16 @@ def _ensure_thesis_seed():
 @app.route("/api/feedback", methods=["POST"])
 def submit_feedback():
     data = request.json
+    _log.info("request_received", route="/api/feedback", method="POST",
+              signal_type=data.get("signal_type"), rating=data.get("rating"),
+              brief_date=data.get("brief_date"))
     add_rating(
         signal_headline=data.get("headline", ""),
         signal_type=data.get("signal_type", "other"),
         rating=int(data.get("rating", 5)),
         brief_date=data.get("brief_date", ""),
     )
+    _log.info("request_completed", route="/api/feedback", method="POST")
     return jsonify({"status": "ok"})
 
 
@@ -1755,6 +1785,7 @@ def feedback_summary():
 
 @app.route("/run", methods=["GET", "POST"])
 def run_pipeline():
+    _log.debug("request_received", route="/run", method=request.method)
     if request.method == "GET":
         return render_template_string(RUN_TEMPLATE, nav=nav_html("run"))
 
@@ -1764,8 +1795,10 @@ def run_pipeline():
             from orchestrator import run_daily_pipeline
             run_daily_pipeline()
         except Exception as e:
+            _log.error("pipeline_error", trigger="web", exc_info=True)
             print(f"[Web] Pipeline error: {e}")
 
+    _log.info("pipeline_triggered", trigger="web")
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
 

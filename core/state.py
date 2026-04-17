@@ -2,6 +2,9 @@ import json
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from .config import config
+from .logging import get_logger
+
+_log = get_logger(__name__)
 
 
 class StateManager:
@@ -27,11 +30,17 @@ class StateManager:
         """Save extracted signals from an ingestion run."""
         run_date = run_date or date.today()
         path = config.signals_dir / f"{run_date.isoformat()}.json"
-        self._write(path, {
-            "date": run_date.isoformat(),
-            "extracted_at": datetime.now().isoformat(),
-            "signals": signals,
-        })
+        _log.debug("state_write_attempt", method="save_signals", path=str(path), count=len(signals))
+        try:
+            self._write(path, {
+                "date": run_date.isoformat(),
+                "extracted_at": datetime.now().isoformat(),
+                "signals": signals,
+            })
+            _log.info("state_write_success", method="save_signals", path=str(path), count=len(signals))
+        except Exception as exc:
+            _log.error("state_write_failed", method="save_signals", path=str(path), exc_info=True)
+            raise
         return path
 
     def load_signals(self, run_date: date) -> list[dict]:
@@ -58,11 +67,17 @@ class StateManager:
         """Save a generated brief."""
         run_date = run_date or date.today()
         path = config.briefs_dir / f"{run_date.isoformat()}.json"
-        self._write(path, {
-            "date": run_date.isoformat(),
-            "generated_at": datetime.now().isoformat(),
-            "brief": brief,
-        })
+        _log.debug("state_write_attempt", method="save_brief", path=str(path))
+        try:
+            self._write(path, {
+                "date": run_date.isoformat(),
+                "generated_at": datetime.now().isoformat(),
+                "brief": brief,
+            })
+            _log.info("state_write_success", method="save_brief", path=str(path))
+        except Exception as exc:
+            _log.error("state_write_failed", method="save_brief", path=str(path), exc_info=True)
+            raise
         return path
 
     def load_brief(self, run_date: date) -> dict | None:
@@ -81,16 +96,21 @@ class StateManager:
     def save_thesis(self, thesis: dict):
         """Save the current thesis, archiving the previous version."""
         current_path = config.thesis_dir / "current.json"
+        _log.debug("state_write_attempt", method="save_thesis", path=str(current_path))
+        try:
+            # Archive existing version if present
+            existing = self._read(current_path)
+            if existing:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                history_path = config.thesis_dir / "history" / f"{timestamp}.json"
+                self._write(history_path, existing)
 
-        # Archive existing version if present
-        existing = self._read(current_path)
-        if existing:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            history_path = config.thesis_dir / "history" / f"{timestamp}.json"
-            self._write(history_path, existing)
-
-        thesis["updated_at"] = datetime.now().isoformat()
-        self._write(current_path, thesis)
+            thesis["updated_at"] = datetime.now().isoformat()
+            self._write(current_path, thesis)
+            _log.info("state_write_success", method="save_thesis", path=str(current_path))
+        except Exception as exc:
+            _log.error("state_write_failed", method="save_thesis", path=str(current_path), exc_info=True)
+            raise
         return current_path
 
     def save_thesis_proposal(self, proposal: dict) -> Path:
@@ -110,8 +130,14 @@ class StateManager:
                 item.setdefault("annotation", None)
 
         path = proposals_dir / f"{date.today().isoformat()}.json"
-        with open(path, "w") as f:
-            json.dump(proposal, f, indent=2, default=str)
+        _log.debug("state_write_attempt", method="save_thesis_proposal", path=str(path))
+        try:
+            with open(path, "w") as f:
+                json.dump(proposal, f, indent=2, default=str)
+            _log.info("state_write_success", method="save_thesis_proposal", path=str(path))
+        except Exception as exc:
+            _log.error("state_write_failed", method="save_thesis_proposal", path=str(path), exc_info=True)
+            raise
         return path
 
     def load_latest_proposal(self) -> tuple:
@@ -127,8 +153,14 @@ class StateManager:
 
     def save_proposal_update(self, proposal: dict, path: Path):
         """Overwrite an existing proposal file (after annotation or refinement)."""
-        with open(path, "w") as f:
-            json.dump(proposal, f, indent=2, default=str)
+        _log.debug("state_write_attempt", method="save_proposal_update", path=str(path))
+        try:
+            with open(path, "w") as f:
+                json.dump(proposal, f, indent=2, default=str)
+            _log.info("state_write_success", method="save_proposal_update", path=str(path))
+        except Exception as exc:
+            _log.error("state_write_failed", method="save_proposal_update", path=str(path), exc_info=True)
+            raise
 
     # ── Watchlists ───────────────────────────────────────────────────────
 
@@ -140,8 +172,14 @@ class StateManager:
     def save_watchlist(self, watchlist: dict, name: str = "default"):
         """Save a watchlist."""
         path = config.watchlists_dir / f"{name}.json"
-        watchlist["updated_at"] = datetime.now().isoformat()
-        self._write(path, watchlist)
+        _log.debug("state_write_attempt", method="save_watchlist", path=str(path), name=name)
+        try:
+            watchlist["updated_at"] = datetime.now().isoformat()
+            self._write(path, watchlist)
+            _log.info("state_write_success", method="save_watchlist", path=str(path), name=name)
+        except Exception as exc:
+            _log.error("state_write_failed", method="save_watchlist", path=str(path), exc_info=True)
+            raise
         return path
 
     # ── Sessions ─────────────────────────────────────────────────────────
@@ -159,14 +197,20 @@ class StateManager:
     def append_session(self, entry: dict):
         """Append a session entry to data/sessions.json."""
         path = config.data_dir / "sessions.json"
-        if path.exists():
-            with open(path) as f:
-                data = json.load(f)
-        else:
-            data = {"sessions": []}
-        data["sessions"].append(entry)
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2, default=str)
+        _log.debug("state_write_attempt", method="append_session", id=entry.get("id"))
+        try:
+            if path.exists():
+                with open(path) as f:
+                    data = json.load(f)
+            else:
+                data = {"sessions": []}
+            data["sessions"].append(entry)
+            with open(path, "w") as f:
+                json.dump(data, f, indent=2, default=str)
+            _log.info("state_write_success", method="append_session", id=entry.get("id"))
+        except Exception as exc:
+            _log.error("state_write_failed", method="append_session", id=entry.get("id"), exc_info=True)
+            raise
 
     # ── Adversary ────────────────────────────────────────────────────────
 
@@ -176,7 +220,13 @@ class StateManager:
         adversary_dir = self.data_dir / "adversary"
         adversary_dir.mkdir(parents=True, exist_ok=True)
         path = adversary_dir / f"{run_date.isoformat()}.json"
-        self._write(path, adversary)
+        _log.debug("state_write_attempt", method="save_adversary", path=str(path))
+        try:
+            self._write(path, adversary)
+            _log.info("state_write_success", method="save_adversary", path=str(path))
+        except Exception as exc:
+            _log.error("state_write_failed", method="save_adversary", path=str(path), exc_info=True)
+            raise
         return path
 
     def load_adversary(self, run_date: date) -> dict | None:
@@ -188,14 +238,20 @@ class StateManager:
         """Append a single feedback entry to data/adversary/feedback.json."""
         path = self.data_dir / "adversary" / "feedback.json"
         path.parent.mkdir(parents=True, exist_ok=True)
-        if path.exists():
-            with open(path) as f:
-                data = json.load(f)
-        else:
-            data = {"feedback": []}
-        data["feedback"].append(entry)
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2, default=str)
+        _log.debug("state_write_attempt", method="save_adversary_feedback", id=entry.get("id"))
+        try:
+            if path.exists():
+                with open(path) as f:
+                    data = json.load(f)
+            else:
+                data = {"feedback": []}
+            data["feedback"].append(entry)
+            with open(path, "w") as f:
+                json.dump(data, f, indent=2, default=str)
+            _log.info("state_write_success", method="save_adversary_feedback", id=entry.get("id"))
+        except Exception as exc:
+            _log.error("state_write_failed", method="save_adversary_feedback", id=entry.get("id"), exc_info=True)
+            raise
 
     def load_adversary_feedback(self, days_back: int = 30) -> list:
         """Load feedback entries within the window, sorted newest first."""
