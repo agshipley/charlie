@@ -1610,6 +1610,7 @@ BOOK_TEMPLATE = """<!DOCTYPE html>
   .tag-complete { background: #d5f5e3; color: #27ae60; }
   .tag-pending { background: #f2f3f4; color: #999; }
   .tag-failed { background: #fde8e8; color: #c0392b; }
+  .tag-generating { background: #fef9e7; color: #b7950b; }
 </style>
 <script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
@@ -1715,8 +1716,10 @@ BOOK_TEMPLATE = """<!DOCTYPE html>
           <span class="artifact-tag {% if a.extraction_status == 'complete' %}tag-complete{% elif a.extraction_status == 'failed' %}tag-failed{% else %}tag-pending{% endif %}">
             {{ a.extraction_status or 'pending' }}
           </span>
-          <span class="artifact-tag tag-pending">ack: {{ a.acknowledgment_status or 'pending' }}</span>
-          {{ a.format | upper if a.format else '' }} &middot; {{ a.word_count or '—' }} words &middot; {{ a.uploaded_at[:10] if a.uploaded_at else '' }}
+          {% if a.acknowledgment_status == 'complete' %}<span class="artifact-tag tag-complete">&#10003; First read</span>
+          {% elif a.acknowledgment_status == 'generating' %}<span class="artifact-tag tag-generating">Charlie is reading&#8230;</span>
+          {% elif a.acknowledgment_status == 'failed' %}<span class="artifact-tag tag-failed">Read failed</span>
+          {% endif %}{{ a.format | upper if a.format else '' }} &middot; {{ a.word_count or '—' }} words &middot; {{ a.uploaded_at[:10] if a.uploaded_at else '' }}
         </div>
       </a>
       {% endfor %}
@@ -1940,6 +1943,7 @@ FIELD_WORK_DETAIL_TEMPLATE = """<!DOCTYPE html>
   .tag-complete { background: #d5f5e3; color: #27ae60; }
   .tag-pending { background: #f2f3f4; color: #999; }
   .tag-failed { background: #fde8e8; color: #c0392b; }
+  .tag-generating { background: #fef9e7; color: #b7950b; }
   .artifact-description { font-size: 14px; color: #555; margin-top: 8px; font-style: italic; }
   .download-link { display: inline-block; margin-top: 10px; font-size: 13px; color: #3D5A80; text-decoration: none; }
   .download-link:hover { text-decoration: underline; }
@@ -1964,8 +1968,9 @@ FIELD_WORK_DETAIL_TEMPLATE = """<!DOCTYPE html>
   .table-block th, .table-block td { border: 1px solid #e0e0e0; padding: 6px 10px; text-align: left; vertical-align: top; }
   .table-block th { background: #f5f5f5; font-weight: 600; }
 
-  .ack-section { margin-top: 48px; border-top: 2px solid #e0e0e0; padding-top: 28px; }
+  .ack-section { margin-top: 28px; border-top: 1px solid #e8e8e8; padding-top: 28px; }
   .ack-section > h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #999; margin-bottom: 24px; }
+  .section-divider { border: none; border-top: 1px solid #e8e8e8; margin: 36px 0; }
   .ack-placeholder { font-size: 14px; color: #bbb; font-style: italic; }
   .ack-generating { font-size: 14px; color: #555; }
   .ack-retry-btn { margin-top: 12px; padding: 8px 18px; background: #3D5A80; color: white; border: none; border-radius: 4px; font-size: 13px; cursor: pointer; }
@@ -2007,7 +2012,11 @@ FIELD_WORK_DETAIL_TEMPLATE = """<!DOCTYPE html>
       <span class="artifact-tag {% if artifact.extraction_status == 'complete' %}tag-complete{% elif artifact.extraction_status == 'failed' %}tag-failed{% else %}tag-pending{% endif %}">
         extraction: {{ artifact.extraction_status or 'pending' }}
       </span>
-      <span class="artifact-tag tag-pending">ack: {{ artifact.acknowledgment_status or 'pending' }}</span>
+      {% if artifact.acknowledgment_status == 'complete' %}<span class="artifact-tag tag-complete">&#10003; First read complete</span>
+      {% elif artifact.acknowledgment_status == 'generating' %}<span class="artifact-tag tag-generating">Charlie is reading&#8230;</span>
+      {% elif artifact.acknowledgment_status == 'failed' %}<span class="artifact-tag tag-failed">Read failed</span>
+      {% elif artifact.acknowledgment_status == 'pending' %}<span class="artifact-tag tag-pending">Awaiting read</span>
+      {% endif %}
     </div>
     <div class="artifact-meta-row">
       {{ artifact.format | upper if artifact.format else '' }}
@@ -2020,6 +2029,85 @@ FIELD_WORK_DETAIL_TEMPLATE = """<!DOCTYPE html>
     <a class="download-link" href="/field/originals/{{ artifact.id }}" download="{{ artifact.filename }}">Download original &darr;</a>
   </div>
 
+  {# ── Charlie's First Read (top) ── #}
+  <div class="ack-section">
+    <h3>Charlie's First Read</h3>
+
+    {% if artifact.acknowledgment_status == 'generating' %}
+    <p class="ack-generating">Charlie is reading this document. This may take up to 90 seconds. <a href="">Refresh the page to check status.</a></p>
+
+    {% elif artifact.acknowledgment_status == 'failed' %}
+    <p style="color:#c0392b;font-size:14px;">Acknowledgment generation failed.</p>
+    {% if artifact.acknowledgment_error %}
+    <div style="font-size:13px;font-family:monospace;background:#fde8e8;padding:10px 14px;border-radius:4px;color:#922b21;margin-bottom:12px;">{{ artifact.acknowledgment_error }}</div>
+    {% endif %}
+    <button class="ack-retry-btn" onclick="retryAcknowledgment('{{ artifact.id }}')">Retry acknowledgment</button>
+    <div id="retry-status" style="margin-top:10px;font-size:13px;color:#555;"></div>
+
+    {% elif artifact.acknowledgment_status == 'complete' and acknowledgment %}
+    {% set s = acknowledgment.sections %}
+
+    <div class="ack-block">
+      <h4>What I read this to be arguing</h4>
+      <p class="ack-prose">{{ s.what_i_read_this_to_be_arguing }}</p>
+    </div>
+
+    {% if s.frameworks_extracted %}
+    <div class="ack-block">
+      <h4>Frameworks extracted</h4>
+      {% for fw in s.frameworks_extracted %}
+      <div class="ack-framework">
+        <div class="ack-framework-name">{{ fw.name }}</div>
+        <div class="ack-framework-claim">{{ fw.claim }}</div>
+        {% if fw.source_section %}<div class="ack-framework-source">Source: {{ fw.source_section }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="ack-block">
+      <h4>Empirical foundation</h4>
+      <p class="ack-prose">{{ s.empirical_foundation }}</p>
+    </div>
+
+    {% if s.connections_to_current_thesis %}
+    <div class="ack-block">
+      <h4>Connections to current thesis</h4>
+      {% for conn in s.connections_to_current_thesis %}
+      <div class="ack-connection">
+        <div class="ack-connection-claim">&ldquo;{{ conn.thesis_claim }}&rdquo;</div>
+        <span class="ack-rel-tag rel-{{ conn.relationship }}">{{ conn.relationship }}</span>
+        <span class="ack-connection-reasoning">{{ conn.reasoning }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if s.open_questions %}
+    <div class="ack-block ack-questions">
+      <h4>Open questions</h4>
+      <ol>
+        {% for q in s.open_questions %}<li>{{ q }}</li>{% endfor %}
+      </ol>
+    </div>
+    {% endif %}
+
+    {% set notes = acknowledgment.generation_notes %}
+    <div class="ack-meta">
+      Generated {{ acknowledgment.generated_at[:10] if acknowledgment.generated_at else '' }}
+      &middot; {{ notes.duration_seconds }}s
+      &middot; {{ notes.model }}
+      &middot; {{ notes.word_count_read }} words read
+    </div>
+
+    {% else %}
+    <p class="ack-placeholder">Acknowledgment pending.</p>
+    {% endif %}
+  </div>
+
+  <hr class="section-divider">
+
+  {# ── Extracted Content ── #}
   <div class="extracted-header">
     <h3>Extracted Content</h3>
     {% if artifact.word_count %}<span class="word-count">{{ artifact.word_count }} words</span>{% endif %}
@@ -2080,82 +2168,6 @@ FIELD_WORK_DETAIL_TEMPLATE = """<!DOCTYPE html>
   {% else %}
   <div class="extraction-state">No extracted content available.</div>
   {% endif %}
-
-  <div class="ack-section">
-    <h3>Charlie's First Read</h3>
-
-    {% if artifact.acknowledgment_status == 'generating' %}
-    <p class="ack-generating">Charlie is reading this document. This may take up to 90 seconds. <a href="">Refresh the page to check status.</a></p>
-
-    {% elif artifact.acknowledgment_status == 'failed' %}
-    <p style="color:#c0392b;font-size:14px;">Acknowledgment generation failed.</p>
-    {% if artifact.acknowledgment_error %}
-    <div style="font-size:13px;font-family:monospace;background:#fde8e8;padding:10px 14px;border-radius:4px;color:#922b21;margin-bottom:12px;">{{ artifact.acknowledgment_error }}</div>
-    {% endif %}
-    <button class="ack-retry-btn" onclick="retryAcknowledgment('{{ artifact.id }}')">Retry acknowledgment</button>
-    <div id="retry-status" style="margin-top:10px;font-size:13px;color:#555;"></div>
-
-    {% elif artifact.acknowledgment_status == 'complete' and acknowledgment %}
-    {% set secs = acknowledgment %}
-    {% set s = acknowledgment.sections %}
-
-    <div class="ack-block">
-      <h4>What I read this to be arguing</h4>
-      <p class="ack-prose">{{ s.what_i_read_this_to_be_arguing }}</p>
-    </div>
-
-    {% if s.frameworks_extracted %}
-    <div class="ack-block">
-      <h4>Frameworks extracted</h4>
-      {% for fw in s.frameworks_extracted %}
-      <div class="ack-framework">
-        <div class="ack-framework-name">{{ fw.name }}</div>
-        <div class="ack-framework-claim">{{ fw.claim }}</div>
-        {% if fw.source_section %}<div class="ack-framework-source">Source: {{ fw.source_section }}</div>{% endif %}
-      </div>
-      {% endfor %}
-    </div>
-    {% endif %}
-
-    <div class="ack-block">
-      <h4>Empirical foundation</h4>
-      <p class="ack-prose">{{ s.empirical_foundation }}</p>
-    </div>
-
-    {% if s.connections_to_current_thesis %}
-    <div class="ack-block">
-      <h4>Connections to current thesis</h4>
-      {% for conn in s.connections_to_current_thesis %}
-      <div class="ack-connection">
-        <div class="ack-connection-claim">&ldquo;{{ conn.thesis_claim }}&rdquo;</div>
-        <span class="ack-rel-tag rel-{{ conn.relationship }}">{{ conn.relationship }}</span>
-        <span class="ack-connection-reasoning">{{ conn.reasoning }}</span>
-      </div>
-      {% endfor %}
-    </div>
-    {% endif %}
-
-    {% if s.open_questions %}
-    <div class="ack-block ack-questions">
-      <h4>Open questions</h4>
-      <ol>
-        {% for q in s.open_questions %}<li>{{ q }}</li>{% endfor %}
-      </ol>
-    </div>
-    {% endif %}
-
-    {% set notes = acknowledgment.generation_notes %}
-    <div class="ack-meta">
-      Generated {{ acknowledgment.generated_at[:10] if acknowledgment.generated_at else '' }}
-      &middot; {{ notes.duration_seconds }}s
-      &middot; {{ notes.model }}
-      &middot; {{ notes.word_count_read }} words read
-    </div>
-
-    {% else %}
-    <p class="ack-placeholder">Acknowledgment pending.</p>
-    {% endif %}
-  </div>
 
   <div class="footer">Charlie — Entertainment Industry Intelligence</div>
 </div>
