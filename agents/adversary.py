@@ -11,8 +11,11 @@ from datetime import date
 
 from core.client import call_agent
 from core.config import config
+from core.logging import get_logger
 from core.state import StateManager
 from core.prompts import build_adversary_prompt
+
+_log = get_logger(__name__)
 
 
 def run_adversary(brief: dict, run_date: date | None = None) -> dict:
@@ -25,8 +28,11 @@ def run_adversary(brief: dict, run_date: date | None = None) -> dict:
     Returns adversary dict. Never crashes the pipeline — returns a null_finding
     dict on any error so render_brief() always has something to work with.
     """
+    import time
     run_date = run_date or date.today()
     state = StateManager()
+    _log.info("agent_start", agent="adversary", run_date=run_date.isoformat())
+    _start = time.monotonic()
     print(f"[Adversary] Starting review for {run_date.isoformat()}")
 
     try:
@@ -57,15 +63,22 @@ def run_adversary(brief: dict, run_date: date | None = None) -> dict:
 
         if adversary.get("null_finding", False):
             print("[Adversary] No findings today.")
+            _log.info("agent_complete", agent="adversary", run_date=run_date.isoformat(),
+                      null_finding=True, duration_seconds=round(time.monotonic() - _start, 2))
         else:
             findings = adversary.get("findings", {})
             total = sum(len(v) for v in findings.values() if isinstance(v, list))
             print(f"[Adversary] {total} finding(s) across {len([k for k, v in findings.items() if isinstance(v, list) and v])} categories")
+            _log.info("agent_complete", agent="adversary", run_date=run_date.isoformat(),
+                      null_finding=False, finding_count=total,
+                      duration_seconds=round(time.monotonic() - _start, 2))
 
         return adversary
 
     except Exception as e:
         print(f"[Adversary] ERROR: {e}. Returning null finding so pipeline continues.")
+        _log.error("agent_failed", agent="adversary", run_date=run_date.isoformat(),
+                   duration_seconds=round(time.monotonic() - _start, 2), exc_info=True)
         return _null_finding(run_date)
 
 

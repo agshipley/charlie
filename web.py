@@ -8,9 +8,14 @@ from pathlib import Path
 from flask import Flask, render_template_string, request, jsonify, redirect, url_for
 from core.config import config
 from core.state import StateManager
+from core.logging import configure_logging, get_logger
+
+configure_logging()
+_log = get_logger(__name__)
 
 app = Flask(__name__)
 state = StateManager()
+_log.info("app_started", mode="web")
 
 
 # ── Feedback Storage ─────────────────────────────────────────────────────
@@ -886,6 +891,7 @@ function submitFreeform(briefDate) {
 
 @app.route("/")
 def index():
+    _log.debug("request_received", route="/", method="GET")
     briefs_dir = config.briefs_dir
     available = sorted([f.stem for f in briefs_dir.glob("*.json")], reverse=True)
     if available:
@@ -897,6 +903,7 @@ def index():
 
 @app.route("/archive")
 def archive():
+    _log.debug("request_received", route="/archive", method="GET")
     briefs_dir = config.briefs_dir
     available = sorted([f.stem for f in briefs_dir.glob("*.json")], reverse=True)
 
@@ -936,6 +943,7 @@ def archive():
 
 @app.route("/companion")
 def companion():
+    _log.debug("request_received", route="/companion", method="GET")
     briefs_dir = config.briefs_dir
     available = sorted([f.stem for f in briefs_dir.glob("*.json")], reverse=True)
 
@@ -981,6 +989,9 @@ def companion():
 @app.route("/api/companion/session", methods=["POST"])
 def submit_session():
     data = request.json
+    _log.info("request_received", route="/api/companion/session", method="POST",
+              tier=data.get("tier"), brief_date=data.get("brief_date"),
+              disposition=data.get("disposition"))
     tier = data["tier"]
     date_str = data["brief_date"].replace("-", "")
     base_id = f"s_{date_str}_{tier}"
@@ -1015,6 +1026,7 @@ def submit_session():
         "confidence": data.get("confidence", "medium"),
     }
     state.append_session(entry)
+    _log.info("request_completed", route="/api/companion/session", method="POST", id=entry_id)
     return jsonify({"status": "ok", "id": entry_id})
 
 
@@ -1026,6 +1038,9 @@ def submit_adversary_feedback():
     data = request.json
     if not data:
         return jsonify({"error": "No data"}), 400
+    _log.info("request_received", route="/api/adversary/feedback", method="POST",
+              category=data.get("category"), disposition=data.get("disposition"),
+              adversary_date=data.get("adversary_date"))
 
     category = data.get("category", "")
     disposition = data.get("disposition", "")
@@ -1061,11 +1076,13 @@ def submit_adversary_feedback():
         "note": note,
     }
     state.save_adversary_feedback(entry)
+    _log.info("request_completed", route="/api/adversary/feedback", method="POST", id=entry["id"])
     return jsonify(entry), 200
 
 
 @app.route("/brief/<brief_date>")
 def show_brief(brief_date):
+    _log.debug("request_received", route="/brief/<brief_date>", method="GET", brief_date=brief_date)
     briefs_dir = config.briefs_dir
     available = sorted([f.stem for f in briefs_dir.glob("*.json")])
 
@@ -1117,6 +1134,7 @@ def show_brief(brief_date):
 
 @app.route("/api/brief/<brief_date>")
 def api_brief(brief_date):
+    _log.debug("request_received", route="/api/brief/<brief_date>", method="GET", brief_date=brief_date)
     brief_path = config.briefs_dir / f"{brief_date}.json"
     if not brief_path.exists():
         return jsonify({"error": "Brief not found"}), 404
@@ -1622,6 +1640,7 @@ BOOK_TEMPLATE = """<!DOCTYPE html>
 
 @app.route("/thesis")
 def show_thesis():
+    _log.debug("request_received", route="/thesis", method="GET")
     thesis = state.load_thesis()
     if not thesis:
         _ensure_thesis_seed()
@@ -1642,6 +1661,7 @@ def show_thesis():
 
 @app.route("/thesis/review")
 def thesis_review():
+    _log.debug("request_received", route="/thesis/review", method="GET")
     proposal, _ = state.load_latest_proposal()
     proposal_date_display = "No proposal"
     if proposal:
@@ -1657,10 +1677,12 @@ def thesis_review():
 
 @app.route("/api/thesis/annotate", methods=["POST"])
 def annotate_proposal():
+    _log.info("request_received", route="/api/thesis/annotate", method="POST")
     proposal, path = state.load_latest_proposal()
     if not proposal or not path:
         return jsonify({"status": "error", "message": "No proposal found"}), 404
-    for ann in request.json.get("annotations", []):
+    annotations = request.json.get("annotations", [])
+    for ann in annotations:
         item_id = ann["id"]
         section = ann["section"]
         for item in proposal.get(section, []):
@@ -1669,11 +1691,13 @@ def annotate_proposal():
                 item["annotation"] = ann.get("annotation")
                 break
     state.save_proposal_update(proposal, path)
+    _log.info("request_completed", route="/api/thesis/annotate", method="POST", annotation_count=len(annotations))
     return jsonify({"status": "ok"})
 
 
 @app.route("/api/thesis/refine", methods=["POST"])
 def refine_thesis():
+    _log.info("request_received", route="/api/thesis/refine", method="POST")
     proposal, path = state.load_latest_proposal()
     if not proposal or not path:
         return jsonify({"status": "error", "message": "No proposal found"}), 404
@@ -1683,11 +1707,13 @@ def refine_thesis():
     from agents.thesis import refine_proposal
     revised = refine_proposal(proposal, thesis)
     state.save_proposal_update(revised, path)
+    _log.info("request_completed", route="/api/thesis/refine", method="POST", iteration=revised["iteration"])
     return jsonify({"status": "ok", "iteration": revised["iteration"]})
 
 
 @app.route("/api/thesis/publish", methods=["POST"])
 def publish_thesis():
+    _log.info("request_received", route="/api/thesis/publish", method="POST")
     proposal, path = state.load_latest_proposal()
     if not proposal or not path:
         return jsonify({"status": "error", "message": "No proposal found"}), 404
@@ -1696,22 +1722,27 @@ def publish_thesis():
     if success:
         proposal["status"] = "published"
         state.save_proposal_update(proposal, path)
+        _log.info("request_completed", route="/api/thesis/publish", method="POST")
         return jsonify({"status": "ok"})
+    _log.error("request_failed", route="/api/thesis/publish", method="POST", reason="publish_failed")
     return jsonify({"status": "error", "message": "Publish failed"}), 500
 
 
 @app.route("/api/thesis/discard", methods=["POST"])
 def discard_proposal():
+    _log.info("request_received", route="/api/thesis/discard", method="POST")
     proposal, path = state.load_latest_proposal()
     if not proposal or not path:
         return jsonify({"status": "error", "message": "No proposal found"}), 404
     proposal["status"] = "discarded"
     state.save_proposal_update(proposal, path)
+    _log.info("request_completed", route="/api/thesis/discard", method="POST")
     return jsonify({"status": "ok"})
 
 
 @app.route("/book")
 def show_book():
+    _log.debug("request_received", route="/book", method="GET")
     thesis = state.load_thesis()
     if not thesis:
         _ensure_thesis_seed()
@@ -1733,12 +1764,16 @@ def _ensure_thesis_seed():
 @app.route("/api/feedback", methods=["POST"])
 def submit_feedback():
     data = request.json
+    _log.info("request_received", route="/api/feedback", method="POST",
+              signal_type=data.get("signal_type"), rating=data.get("rating"),
+              brief_date=data.get("brief_date"))
     add_rating(
         signal_headline=data.get("headline", ""),
         signal_type=data.get("signal_type", "other"),
         rating=int(data.get("rating", 5)),
         brief_date=data.get("brief_date", ""),
     )
+    _log.info("request_completed", route="/api/feedback", method="POST")
     return jsonify({"status": "ok"})
 
 
@@ -1750,6 +1785,7 @@ def feedback_summary():
 
 @app.route("/run", methods=["GET", "POST"])
 def run_pipeline():
+    _log.debug("request_received", route="/run", method=request.method)
     if request.method == "GET":
         return render_template_string(RUN_TEMPLATE, nav=nav_html("run"))
 
@@ -1759,8 +1795,10 @@ def run_pipeline():
             from orchestrator import run_daily_pipeline
             run_daily_pipeline()
         except Exception as e:
+            _log.error("pipeline_error", trigger="web", exc_info=True)
             print(f"[Web] Pipeline error: {e}")
 
+    _log.info("pipeline_triggered", trigger="web")
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
 
@@ -1860,6 +1898,171 @@ def force_seed():
             results.append(f"Copied {rel} → {dest}")
 
     return "<br>".join(results) if results else "No files to seed"
+
+
+# ── Admin Logs ────────────────────────────────────────────────────────────
+
+_ADMIN_LOG_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charlie Logs</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'SF Mono', 'Menlo', 'Consolas', monospace; font-size: 12px;
+         background: #1a1a1a; color: #d4d4d4; padding: 16px; }
+  h1 { font-size: 16px; font-weight: 600; color: #ffffff; margin-bottom: 6px; }
+  .meta { font-size: 11px; color: #666; margin-bottom: 16px; }
+  .filters { margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .filters a { font-size: 11px; color: #888; text-decoration: none; padding: 3px 8px;
+               border: 1px solid #333; border-radius: 3px; }
+  .filters a:hover { color: #fff; border-color: #555; }
+  .filters a.active { color: #fff; border-color: #888; background: #333; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 6px 10px; color: #666; font-weight: 500;
+       border-bottom: 1px solid #333; white-space: nowrap; }
+  td { padding: 5px 10px; vertical-align: top; border-bottom: 1px solid #222; }
+  tr:hover td { background: #222; }
+  .ts { color: #666; white-space: nowrap; }
+  .lvl-error { color: #e06c75; font-weight: 600; }
+  .lvl-warning { color: #e5c07b; font-weight: 600; }
+  .lvl-info { color: #98c379; }
+  .lvl-debug { color: #555; }
+  .logger { color: #61afef; }
+  .event { color: #d4d4d4; }
+  .ctx { color: #888; font-size: 11px; }
+  .empty { color: #444; font-style: italic; padding: 20px 0; }
+</style>
+</head>
+<body>
+<h1>Charlie Logs</h1>
+<div class="meta">{{ count }} entries &mdash; {{ filter_desc }}</div>
+<div class="filters">
+  <a href="{{ base_url }}" class="{{ 'active' if not level_filter else '' }}">all levels</a>
+  <a href="{{ base_url }}&level=error" class="{{ 'active' if level_filter == 'error' else '' }}">error</a>
+  <a href="{{ base_url }}&level=warning" class="{{ 'active' if level_filter == 'warning' else '' }}">warning</a>
+  <a href="{{ base_url }}&level=info" class="{{ 'active' if level_filter == 'info' else '' }}">info</a>
+  <a href="{{ base_url }}&level=debug" class="{{ 'active' if level_filter == 'debug' else '' }}">debug</a>
+</div>
+{% if entries %}
+<table>
+  <thead>
+    <tr>
+      <th>timestamp (PT)</th>
+      <th>level</th>
+      <th>logger</th>
+      <th>event</th>
+      <th>context</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in entries %}
+    <tr>
+      <td class="ts">{{ e.ts_local }}</td>
+      <td class="lvl-{{ e.level }}">{{ e.level }}</td>
+      <td class="logger">{{ e.logger }}</td>
+      <td class="event">{{ e.event }}</td>
+      <td class="ctx">{{ e.ctx }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">No log entries found.</div>
+{% endif %}
+</body>
+</html>"""
+
+
+@app.route("/admin/logs")
+def admin_logs():
+    token = request.args.get("token", "")
+    admin_token = os.getenv("ADMIN_TOKEN", "")
+    if not admin_token or token != admin_token:
+        return "Unauthorized", 401
+
+    try:
+        n = min(int(request.args.get("n", 200)), 1000)
+    except (ValueError, TypeError):
+        n = 200
+    level_filter = request.args.get("level", "").lower().strip()
+    logger_filter = request.args.get("logger", "").strip()
+
+    log_path = config.data_dir / "logs" / "app.log"
+    raw_entries = []
+    if log_path.exists():
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    raw_entries.append(obj)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+
+    # Apply filters before slicing so ?n= refers to filtered count
+    if level_filter:
+        raw_entries = [e for e in raw_entries if e.get("level", "").lower() == level_filter]
+    if logger_filter:
+        raw_entries = [e for e in raw_entries if logger_filter in e.get("logger", "")]
+
+    # Newest first
+    raw_entries.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
+    raw_entries = raw_entries[:n]
+
+    # Format for template
+    pt_offset_hours = -7  # PDT; close enough for an operator tool
+    entries = []
+    for obj in raw_entries:
+        ts_raw = obj.get("timestamp", "")
+        ts_local = ts_raw
+        try:
+            from datetime import timezone, timedelta
+            dt = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+            dt_pt = dt.astimezone(timezone(timedelta(hours=pt_offset_hours)))
+            ts_local = dt_pt.strftime("%m-%d %H:%M:%S")
+        except (ValueError, AttributeError):
+            pass
+
+        level = obj.get("level", "?").lower()
+        logger = obj.get("logger", "")
+        event = obj.get("event", "")
+
+        # Remaining keys are context
+        skip = {"timestamp", "level", "logger", "event"}
+        ctx_parts = [f"{k}={json.dumps(v, default=str)}" for k, v in obj.items() if k not in skip and v is not None]
+        ctx = "  ".join(ctx_parts)
+
+        entries.append({
+            "ts_local": ts_local,
+            "level": level,
+            "logger": logger,
+            "event": event,
+            "ctx": ctx,
+        })
+
+    base_url = f"/admin/logs?token={token}&n={n}"
+    if logger_filter:
+        base_url += f"&logger={logger_filter}"
+
+    filter_parts = []
+    if level_filter:
+        filter_parts.append(f"level={level_filter}")
+    if logger_filter:
+        filter_parts.append(f"logger={logger_filter}")
+    filter_desc = ", ".join(filter_parts) if filter_parts else f"last {n}"
+
+    return render_template_string(
+        _ADMIN_LOG_TEMPLATE,
+        entries=entries,
+        count=len(entries),
+        filter_desc=filter_desc,
+        level_filter=level_filter,
+        base_url=base_url,
+    )
 
 
 if __name__ == "__main__":

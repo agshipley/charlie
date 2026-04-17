@@ -23,7 +23,7 @@ class Config:
         self.context_dir = self.project_root / "context"
 
         # Ensure data directories exist
-        for subdir in ["signals", "briefs", "thesis", "thesis/history", "watchlists", "adversary"]:
+        for subdir in ["signals", "briefs", "thesis", "thesis/history", "watchlists", "adversary", "logs"]:
             (self.data_dir / subdir).mkdir(parents=True, exist_ok=True)
 
         # Scheduling

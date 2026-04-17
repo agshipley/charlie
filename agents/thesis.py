@@ -11,8 +11,11 @@ from datetime import date, datetime
 
 from core.client import call_agent
 from core.config import config
+from core.logging import get_logger
 from core.state import StateManager
 from core.prompts import build_thesis_prompt
+
+_log = get_logger(__name__)
 
 
 def run_thesis(days_back: int = 7) -> dict:
@@ -24,7 +27,10 @@ def run_thesis(days_back: int = 7) -> dict:
 
     Returns the proposal dict.
     """
+    import time
     state = StateManager()
+    _log.info("agent_start", agent="thesis", days_back=days_back)
+    _start = time.monotonic()
     print(f"[Thesis] Starting synthesis run (last {days_back} days)")
 
     # Load current thesis
@@ -44,6 +50,8 @@ def run_thesis(days_back: int = 7) -> dict:
 
     if not recent_signals and not thesis:
         print("[Thesis] No signals and no existing thesis. Nothing to synthesize.")
+        _log.info("agent_complete", agent="thesis", days_back=days_back,
+                  proposal_generated=False, duration_seconds=round(time.monotonic() - _start, 2))
         return {}
 
     # Build the prompt
@@ -104,6 +112,15 @@ the available signals and the thesis subject description in your instructions.{s
         print(f"[Thesis] Revisions proposed: {len(proposal.get('revisions', []))}")
         print(f"[Thesis] New patterns identified: {len(proposal.get('new_patterns', []))}")
         print("[Thesis] ⚠️  Proposal requires Andrew's review before application.")
+        _log.info("agent_complete", agent="thesis", days_back=days_back,
+                  proposal_generated=True,
+                  extensions=len(proposal.get("extensions", [])),
+                  revisions=len(proposal.get("revisions", [])),
+                  new_patterns=len(proposal.get("new_patterns", [])),
+                  duration_seconds=round(time.monotonic() - _start, 2))
+    else:
+        _log.info("agent_complete", agent="thesis", days_back=days_back,
+                  proposal_generated=False, duration_seconds=round(time.monotonic() - _start, 2))
 
     return proposal
 
