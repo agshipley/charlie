@@ -1,0 +1,64 @@
+{
+  "sessions": [
+    {
+      "id": "s_20260401_freeform_a",
+      "brief_date": "2026-04-01",
+      "session_date": "2026-04-01",
+      "tier": "freeform",
+      "question": "What is Netflix's implied CPM equivalent per acquired listener across these deals? If creator audience licensing is cheaper than Netflix's standard marketing spend per subscriber, the pricing floor for Audiochuck's negotiating position just moved up.",
+      "disposition": null,
+      "thesis_force": null,
+      "signal_category": "",
+      "insight": "Netflix's deals with iHeart, Spotify, Ms. Rachel, and Mark Rober are systematic audience acquisition — not one-offs. Each deal buys a pre-sorted audience segment Netflix's algorithm can't efficiently reach. This is the exact logic that makes Audiochuck's 12M monthly listeners a strategic asset, not just a content library.",
+      "confidence": null
+    },
+    {
+      "id": "s_20260402_freeform_a",
+      "brief_date": "2026-04-02",
+      "session_date": "2026-04-02",
+      "tier": "freeform",
+      "question": "How many other first-look deals did Sony cut versus retain in this same cycle? The ratio tells you whether Liz's renewal is a high-signal exception or part of a broader set — and that distinction matters for how she positions herself in the next conversation with Lauren or Katherine.",
+      "disposition": null,
+      "thesis_force": null,
+      "signal_category": "",
+      "insight": "Sony exited unscripted leadership, folded nonfiction under Katherine Pope, offered targeted buyouts in 'less growth' areas, and divested the Whisper Group sports stake — all while renewing Liz's first-look deal in the same window. The pattern isn't coincidental: Sony is shifting from studio-as-development-engine to studio-as-financing-and-distribution, and thinning its internal pipeline capacity in the process. Retaining Liz while cutting internal bandwidth means her deal has shifted in function — she's not one of many partners competing for internal resources, she's part of a deliberately smaller group Sony is depending on to supply development-ready material. The constraint that comes with that: projects need to arrive more fully formed than before, because Pope's expanded scope covering both scripted and nonfiction creates real exec bandwidth pressure.",
+      "confidence": null
+    },
+    {
+      "id": "s_20260402_freeform_b",
+      "brief_date": "2026-04-02",
+      "session_date": "2026-04-02",
+      "tier": "freeform",
+      "question": "Is this an April Fools' plant? If real, which studio — and does this represent a single company's disillusionment or an industry-wide reassessment of AI video tools on a 2\u20133 year horizon?",
+      "disposition": null,
+      "thesis_force": null,
+      "signal_category": "",
+      "insight": "A report surfaced that a major unnamed studio withdrew its OpenAI investment while OpenAI exits video generation. Thin sourcing plus April 1 demands a hard flag before acting. Given my active projects (Generational Love, Unwell, Fox & Hound, American Proof, Somnia), Sony first-look deal, and the Audiochuck/Shanfield conversation — how does this intersect with where I am right now?",
+      "confidence": null
+    },
+    {
+      "id": "s_20260402_freeform_c",
+      "brief_date": "2026-04-02",
+      "session_date": "2026-04-02",
+      "tier": "freeform",
+      "question": "Does Amazon make a play for NBA TV or MLB Network next — and if Amazon absorbs league channels alongside its streaming rights, does it become a de facto sports network that fundamentally changes its competitive positioning against Netflix?",
+      "disposition": null,
+      "thesis_force": null,
+      "signal_category": "",
+      "insight": "ESPN took operational control of NFL Network and RedZone today. The last standalone league-owned linear property falls. The remaining cable bundle loses its structural justification, accelerating cord-cutting. Given my active projects (Generational Love, Unwell, Fox & Hound, American Proof, Somnia), Sony first-look deal, and the Audiochuck/Shanfield conversation — how does this intersect with where I am right now?",
+      "confidence": null
+    },
+    {
+      "id": "s_20260413_freeform_a",
+      "brief_date": "2026-04-13",
+      "session_date": "2026-04-13",
+      "tier": "freeform",
+      "question": "What does 'platform-native content' mean operationally inside Sony right now — is Katherine Pope actively building a creator-partnership development function, or is this language ahead of the infrastructure?",
+      "disposition": null,
+      "thesis_force": null,
+      "signal_category": "",
+      "insight": "Sony exited unscripted leadership, folded nonfiction under Katherine Pope, named platform-native content and YouTube utilization as strategic pillars, while simultaneously writing off $300M+ on the Industrial Media acquisition. The talent trained on that investment is migrating to creator-native companies. What Sony kept is first-look relationships with creator-led scripted producers.",
+      "confidence": null
+    }
+  ]
+}
