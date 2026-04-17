@@ -2101,7 +2101,11 @@ FIELD_WORK_DETAIL_TEMPLATE = """<!DOCTYPE html>
     </div>
 
     {% else %}
-    <p class="ack-placeholder">Acknowledgment pending.</p>
+    <p class="ack-placeholder" style="margin-bottom:14px;">Charlie hasn't read this yet.</p>
+    {% if artifact.extraction_status == 'complete' %}
+    <button class="ack-retry-btn" onclick="retryAcknowledgment('{{ artifact.id }}')">Generate first read</button>
+    <div id="retry-status" style="margin-top:10px;font-size:13px;color:#555;"></div>
+    {% endif %}
     {% endif %}
   </div>
 
