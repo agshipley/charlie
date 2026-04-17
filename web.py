@@ -52,8 +52,8 @@ def nav_html(active: str) -> str:
     return f"""<div class="nav">
   <a href="/" class="{'active' if active == 'brief' else ''}">The Morning Loaf</a>
   <a href="/companion" class="{'active' if active == 'companion' else ''}">Companion</a>
-  <a href="/thesis" class="{'active' if active == 'thesis' else ''}">Living Thesis</a>
-  <a href="/book" class="{'active' if active == 'book' else ''}">Book Project</a>
+  <a href="/thesis" class="{'active' if active == 'thesis' else ''}">Far Mar</a>
+  <a href="/book" class="{'active' if active == 'book' else ''}">The Field</a>
   <a href="/archive" class="{'active' if active == 'archive' else ''}">Archive</a>
   <a href="/run" class="{'active' if active == 'run' else ''}">Run</a>
 </div>"""
@@ -1126,7 +1126,7 @@ REVIEW_TEMPLATE = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Charlie — Thesis Review</title>
+<title>Charlie — Far Mar Review</title>
 <style>
   """ + SHARED_STYLES + """
   .iteration-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
@@ -1177,17 +1177,17 @@ REVIEW_TEMPLATE = """<!DOCTYPE html>
 <body>
 <div class="container">
   <div class="header">
-    <h1>Thesis Review</h1>
+    <h1>Far Mar Review</h1>
     <div class="sub">{{ proposal_date_display }}</div>
   </div>
 
   {{ nav | safe }}
 
   {% if not proposal %}
-  <p class="empty">No proposal available. The thesis synthesizer runs on Monday mornings.</p>
+  <p class="empty">No proposal available. Far Mar runs on Monday mornings.</p>
 
   {% elif proposal.status == 'published' %}
-  <div class="status-published">This proposal has been published. <a href="/thesis">View the live thesis →</a></div>
+  <div class="status-published">This proposal has been published. <a href="/thesis">View Far Mar →</a></div>
 
   {% elif proposal.status == 'discarded' %}
   <div class="status-discarded">This proposal was discarded.</div>
@@ -1341,7 +1341,7 @@ async function triggerRefine() {
 }
 
 async function triggerPublish() {
-  if (!confirm('This will update the live thesis. The next daily brief will run against the updated thesis. Publish?')) return;
+  if (!confirm('This will update Far Mar. The next Morning Loaf will run against the updated Far Mar. Publish?')) return;
   await saveAnnotations();
   const resp = await fetch('/api/thesis/publish', {method: 'POST'});
   const data = await resp.json();
@@ -1372,7 +1372,7 @@ THESIS_TEMPLATE = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Charlie — The Living Thesis</title>
+<title>Charlie — Far Mar</title>
 <style>
   """ + SHARED_STYLES + """
   .pending-notice { font-size: 13px; color: #7a5c00; background: #fffbe6; border: 1px solid #f5e04a;
@@ -1425,14 +1425,14 @@ THESIS_TEMPLATE = """<!DOCTYPE html>
 <body>
 <div class="container">
   <div class="header">
-    <h1>The Living Thesis</h1>
+    <h1>Far Mar</h1>
     <div class="sub">Entertainment Industry Restructuring</div>
   </div>
 
   {{ nav | safe }}
 
   {% if pending_proposal_date %}
-  <div class="pending-notice">A thesis proposal from {{ pending_proposal_date }} is awaiting review. <a href="/thesis/review">→ Review it</a></div>
+  <div class="pending-notice">A proposal from {{ pending_proposal_date }} is awaiting review. <a href="/thesis/review">→ Review it</a></div>
   {% endif %}
 
   {% if thesis %}
@@ -1520,7 +1520,7 @@ BOOK_TEMPLATE = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Charlie — Book Project</title>
+<title>Charlie — The Field</title>
 <style>
   """ + SHARED_STYLES + """
   .book-status { font-size: 14px; color: #333; margin-bottom: 28px; padding: 16px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
@@ -1550,7 +1550,7 @@ BOOK_TEMPLATE = """<!DOCTYPE html>
 <body>
 <div class="container">
   <div class="header">
-    <h1>Book Project</h1>
+    <h1>The Field</h1>
     <div class="sub">{{ thesis.book_project.get('working_title', 'Working Title TBD') if thesis and thesis.get('book_project') else 'TBD' }}</div>
   </div>
 
