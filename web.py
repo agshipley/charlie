@@ -1900,6 +1900,171 @@ def force_seed():
     return "<br>".join(results) if results else "No files to seed"
 
 
+# ── Admin Logs ────────────────────────────────────────────────────────────
+
+_ADMIN_LOG_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charlie Logs</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'SF Mono', 'Menlo', 'Consolas', monospace; font-size: 12px;
+         background: #1a1a1a; color: #d4d4d4; padding: 16px; }
+  h1 { font-size: 16px; font-weight: 600; color: #ffffff; margin-bottom: 6px; }
+  .meta { font-size: 11px; color: #666; margin-bottom: 16px; }
+  .filters { margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .filters a { font-size: 11px; color: #888; text-decoration: none; padding: 3px 8px;
+               border: 1px solid #333; border-radius: 3px; }
+  .filters a:hover { color: #fff; border-color: #555; }
+  .filters a.active { color: #fff; border-color: #888; background: #333; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 6px 10px; color: #666; font-weight: 500;
+       border-bottom: 1px solid #333; white-space: nowrap; }
+  td { padding: 5px 10px; vertical-align: top; border-bottom: 1px solid #222; }
+  tr:hover td { background: #222; }
+  .ts { color: #666; white-space: nowrap; }
+  .lvl-error { color: #e06c75; font-weight: 600; }
+  .lvl-warning { color: #e5c07b; font-weight: 600; }
+  .lvl-info { color: #98c379; }
+  .lvl-debug { color: #555; }
+  .logger { color: #61afef; }
+  .event { color: #d4d4d4; }
+  .ctx { color: #888; font-size: 11px; }
+  .empty { color: #444; font-style: italic; padding: 20px 0; }
+</style>
+</head>
+<body>
+<h1>Charlie Logs</h1>
+<div class="meta">{{ count }} entries &mdash; {{ filter_desc }}</div>
+<div class="filters">
+  <a href="{{ base_url }}" class="{{ 'active' if not level_filter else '' }}">all levels</a>
+  <a href="{{ base_url }}&level=error" class="{{ 'active' if level_filter == 'error' else '' }}">error</a>
+  <a href="{{ base_url }}&level=warning" class="{{ 'active' if level_filter == 'warning' else '' }}">warning</a>
+  <a href="{{ base_url }}&level=info" class="{{ 'active' if level_filter == 'info' else '' }}">info</a>
+  <a href="{{ base_url }}&level=debug" class="{{ 'active' if level_filter == 'debug' else '' }}">debug</a>
+</div>
+{% if entries %}
+<table>
+  <thead>
+    <tr>
+      <th>timestamp (PT)</th>
+      <th>level</th>
+      <th>logger</th>
+      <th>event</th>
+      <th>context</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in entries %}
+    <tr>
+      <td class="ts">{{ e.ts_local }}</td>
+      <td class="lvl-{{ e.level }}">{{ e.level }}</td>
+      <td class="logger">{{ e.logger }}</td>
+      <td class="event">{{ e.event }}</td>
+      <td class="ctx">{{ e.ctx }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">No log entries found.</div>
+{% endif %}
+</body>
+</html>"""
+
+
+@app.route("/admin/logs")
+def admin_logs():
+    token = request.args.get("token", "")
+    admin_token = os.getenv("ADMIN_TOKEN", "")
+    if not admin_token or token != admin_token:
+        return "Unauthorized", 401
+
+    try:
+        n = min(int(request.args.get("n", 200)), 1000)
+    except (ValueError, TypeError):
+        n = 200
+    level_filter = request.args.get("level", "").lower().strip()
+    logger_filter = request.args.get("logger", "").strip()
+
+    log_path = config.data_dir / "logs" / "app.log"
+    raw_entries = []
+    if log_path.exists():
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    raw_entries.append(obj)
+                except (json.JSONDecodeError, ValueError):
+                    pass
+
+    # Apply filters before slicing so ?n= refers to filtered count
+    if level_filter:
+        raw_entries = [e for e in raw_entries if e.get("level", "").lower() == level_filter]
+    if logger_filter:
+        raw_entries = [e for e in raw_entries if logger_filter in e.get("logger", "")]
+
+    # Newest first
+    raw_entries.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
+    raw_entries = raw_entries[:n]
+
+    # Format for template
+    pt_offset_hours = -7  # PDT; close enough for an operator tool
+    entries = []
+    for obj in raw_entries:
+        ts_raw = obj.get("timestamp", "")
+        ts_local = ts_raw
+        try:
+            from datetime import timezone, timedelta
+            dt = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+            dt_pt = dt.astimezone(timezone(timedelta(hours=pt_offset_hours)))
+            ts_local = dt_pt.strftime("%m-%d %H:%M:%S")
+        except (ValueError, AttributeError):
+            pass
+
+        level = obj.get("level", "?").lower()
+        logger = obj.get("logger", "")
+        event = obj.get("event", "")
+
+        # Remaining keys are context
+        skip = {"timestamp", "level", "logger", "event"}
+        ctx_parts = [f"{k}={json.dumps(v, default=str)}" for k, v in obj.items() if k not in skip and v is not None]
+        ctx = "  ".join(ctx_parts)
+
+        entries.append({
+            "ts_local": ts_local,
+            "level": level,
+            "logger": logger,
+            "event": event,
+            "ctx": ctx,
+        })
+
+    base_url = f"/admin/logs?token={token}&n={n}"
+    if logger_filter:
+        base_url += f"&logger={logger_filter}"
+
+    filter_parts = []
+    if level_filter:
+        filter_parts.append(f"level={level_filter}")
+    if logger_filter:
+        filter_parts.append(f"logger={logger_filter}")
+    filter_desc = ", ".join(filter_parts) if filter_parts else f"last {n}"
+
+    return render_template_string(
+        _ADMIN_LOG_TEMPLATE,
+        entries=entries,
+        count=len(entries),
+        filter_desc=filter_desc,
+        level_filter=level_filter,
+        base_url=base_url,
+    )
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     seed_data()
