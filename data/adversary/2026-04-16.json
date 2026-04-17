@@ -1,0 +1,81 @@
+{
+  "run_date": "2026-04-16",
+  "brief_date": "2026-04-16",
+  "findings": {
+    "flattery": [
+      {
+        "citation": "Sony is cutting nonfiction and keeping Liz — that's a directional bet, not just relationship continuity",
+        "tier": "tier_3",
+        "prior_session_id": null,
+        "critique": "This 4/13 framing returns to Liz a frame the brief first gave her on 4/2. She spent eleven days building an analytical position around the 4/2 frame in her personal Claude sessions. The brief then returned the frame to her hardened rather than testing it. This is the closed-loop flattery pattern the adversary exists to catch."
+      },
+      {
+        "citation": "Given my active projects (Generational Love, Unwell, Fox & Hound, American Proof, Somnia), Sony first-look deal, and the Audiochuck/Shanfield conversation",
+        "tier": "tier_2",
+        "prior_session_id": null,
+        "critique": "This template phrase appears verbatim in multiple Connect-to-My-World prompts. Every piece of industry news is routed through a fixed five-project filter. The filter is useful once; deployed every day, it becomes a comfort object that makes all news feel proximally relevant to Liz."
+      }
+    ],
+    "pattern_exhaustion": [
+      {
+        "pattern": "Sony restructuring + Liz retention frame",
+        "occurrences": 2,
+        "window_days": 14,
+        "critique": "Two of five visible engaged brief items in this window center on the same Sony-restructuring-around-Liz frame (4/2, 4/13). That is 40 percent of deep engagement concentrated on one company's restructuring story. Either Sony has been over-weighted in ingestion, or the brief is responding to Liz's own focus by producing more Sony-forward content — the feedback-loop degradation the system is meant to detect."
+      },
+      {
+        "pattern": "Five-project slate as standing filter",
+        "occurrences": 3,
+        "window_days": 14,
+        "critique": "The slate phrase appears at least twice on 4/2 and again structurally in most Connect-to-My-World framings. After fourteen-plus daily briefs the slate has become a template, not a lens. When the filter is identical every day, the filter is doing the thinking."
+      },
+      {
+        "pattern": "Audiochuck name-check across non-Audiochuck items",
+        "occurrences": 3,
+        "window_days": 14,
+        "critique": "Audiochuck appears in the 4/1 Netflix-creator-licensing framing chain and in the standing Connect-to-My-World phrasing on 4/2. Entity overindex on Audiochuck has been flagged as a known failure mode and the evidence remains visible. Even when Audiochuck is not the subject, it is being cited."
+      }
+    ],
+    "inference_theater": [
+      {
+        "claim": "Sony is contracting its internal development infrastructure while deliberately retaining select outside partners",
+        "underlying_signal": "Sony exited unscripted leadership, folded nonfiction under Katherine Pope, offered targeted buyouts, divested the Whisper Group sports stake, and renewed Liz's first-look deal",
+        "critique": "The facts support 'Sony is contracting.' The inferential weight is in the word 'deliberately' — which asserts selectivity rather than proposing it as a hypothesis. A brief doing the inference would ask what the retention criteria were, given the ratio of cuts to retentions. Instead, selectivity is assumed and downstream reasoning proceeds as if established."
+      },
+      {
+        "claim": "Sony is cutting nonfiction and keeping Liz — that's a directional bet",
+        "underlying_signal": "Same Sony facts from 4/2 plus the Industrial Media $300M writedown and 'platform-native content' language from Katherine Pope",
+        "critique": "The 4/13 brief introduces new vocabulary ('platform-native content', 'directional bet') but operates inside the identical frame from 4/2 — that Liz's retention is strategic. Eleven days passed and no brief in the window applied adversarial pressure to the original claim. Charlie is building on its own prior frames rather than re-testing them."
+      }
+    ],
+    "missing_story": [
+      {
+        "signal_reference": "Liz's personal Claude chat log, 4/1 through 4/13",
+        "declined_reading": "Liz is producing thesis-caliber analytical work in her personal Claude conversations — 'Sony is shifting from studio-as-development-engine to studio-as-financing-and-distribution' is an original structural claim she constructed across multiple sessions. This work is invisible to Charlie's weekly thesis synthesizer, which ran on Monday 4/13 without any awareness that eleven days of her authored thinking existed on exactly the subject it was synthesizing. The single most consequential thing a cross-surface adversary would flag is architectural: Liz's best thinking has no path into Far Mar."
+      },
+      {
+        "signal_reference": "Amazon / NBA TV / MLB Network Tier 1 signal from 4/2",
+        "declined_reading": "Liz engaged this Tier 1 item via Connect-to-My-World, not via Unpack-the-Context. Her Tier 1 engagement throughout the visible window is consistently shallower than her Tier 3 engagement. Either Tier 1 production is not landing with the same cognitive weight as Tier 3, or the user is only engaging deeply when content is her-adjacent. Both are drift patterns worth flagging."
+      }
+    ],
+    "comfortable_framing": [
+      {
+        "phrase": "Liz's renewal is structural, not courtesy",
+        "tier": "tier_3",
+        "critique": "False binary. Both options offered are flattering. The third option — 'a cheap contract Sony keeps because cutting it costs more than keeping it' — is not surfaced. The binary construction makes the elevated reading feel earned."
+      },
+      {
+        "phrase": "part of a deliberately smaller group Sony is depending on",
+        "tier": "tier_3",
+        "critique": "Passive voice. Sony depending on her. She is the object of care rather than a party to a business relationship that could be reversed at low cost by a new EVP."
+      },
+      {
+        "phrase": "that's a directional bet, not just relationship continuity",
+        "tier": "tier_3",
+        "critique": "'Directional bet' elevates. Non-elevating alternative from the same facts: 'Sony has kept Liz's first-look deal while restructuring around it — unclear whether this reflects strategic intent or low-cost inertia.' Both are consistent with the evidence. The brief consistently picks the elevating reading."
+      }
+    ]
+  },
+  "summary": "The briefs in this window have systematically cast Liz as strategically important to Sony, and she has built an analytical framework around that casting that Charlie has not adversarially tested at any point in eleven days.",
+  "null_finding": false
+}
