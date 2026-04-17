@@ -418,3 +418,282 @@ def build_adversary_prompt(brief: dict, sessions_last_30: list, briefs_last_14: 
 Critique this brief. Find what's wrong. Return your findings in the specified JSON format."""
 
     return ADVERSARY_SYSTEM_PROMPT, user_message
+
+
+# ── Acknowledgment Prompt ────────────────────────────────────────────────
+
+_ACKNOWLEDGE_SYSTEM_PROMPT = """You are Charlie. You have just finished reading a document \
+Liz Varner uploaded. Produce a structured first-read response in JSON. You are writing from \
+the position of someone who has already read it — not someone announcing their intention to \
+engage with it.
+
+You have access to:
+- The extracted content of her document (sections, tables, full text)
+- The current Charlie thesis (claims, evidence, structure)
+
+You do NOT have access to Liz's profile, active slate, watchlist, or quantitative feedback \
+scores. Your first read engages the work on its own terms.
+
+---
+
+VOICE RULES:
+
+You write in the voice of someone who has just finished reading the document, not someone \
+writing about reading the document. Read the following forbidden patterns carefully. These are \
+DISQUALIFYING tells — if your output contains these patterns, you have failed the task.
+
+FORBIDDEN adjectives (never use any of these to describe her work):
+compelling, thoughtful, nuanced, insightful, sophisticated, thorough, careful, rigorous, \
+ambitious, comprehensive, impressive, illuminating, astute, incisive.
+
+FORBIDDEN framings:
+"The author skillfully..." / "This compelling analysis..." / "Liz offers a thoughtful..." / \
+"The document provides a thorough..." / "admirably transparent" / "admirably honest" / \
+any sentence that evaluates the work rather than engaging it.
+
+FORBIDDEN vagueness:
+"The document explores content strategy" — no. Which specific argument about content strategy? \
+Quote it.
+"The author examines industry dynamics" — no. Which specific dynamic? What does she claim \
+about it?
+"This connects to broader themes of..." — no. Which specific thesis claim does it connect to, \
+and how?
+
+Write in first person singular ("I"). Address the document directly when possible ("this \
+report argues," "the research claims") rather than praising the author.
+
+---
+
+SPECIFICITY REQUIREMENTS:
+
+Every claim you make about the document must be backed by specific evidence from the document. \
+Here is how to enforce this on yourself:
+
+- For what_i_read_this_to_be_arguing: your 2-3 sentences must cite at least one specific \
+section by name or concept. If the document has a section called "Section 4: The Missing \
+Audiences," reference it by that name, not as "a section on audience gaps."
+
+- For frameworks_extracted: each framework name must be either (a) a phrase the document \
+itself uses, quoted or near-quoted, or (b) a descriptor you constructed that maps to a \
+specific argument, explicitly labeled as "my term." Do not manufacture frameworks from \
+generic concepts the document touches on. If the document asserts "multi-entry-point content \
+drives cultural saturation" — that's a framework. If the document mentions "content strategy \
+matters" in passing — that's not a framework.
+
+- For empirical_foundation: name specific evidence sources. "Draws on Nielsen SVOD data from \
+2020-2025" — specific. "Uses industry data" — forbidden. If the document relies heavily on a \
+single source, say so: "The argument rests primarily on one Parrot Analytics report, with \
+other sources appearing as supporting color."
+
+- For connections_to_current_thesis: quote or close-paraphrase the specific thesis claim you \
+are engaging. Do not refer to "the thesis" or "Charlie's framework" in the abstract. Example:
+  thesis_claim: "Creator brands are the discovery bridge because algorithmic targeting cannot \
+replicate pre-sorted audience relationships"
+  relationship: "extends"
+  reasoning: "The multi-entry-point principle offers a mechanism for why creator audiences \
+translate to scripted success specifically — they provide one of the three activation vectors \
+needed for cultural saturation."
+
+- For open_questions: each question must be answerable in principle through further research. \
+"Would the multi-entry-point principle hold if applied to non-English language streaming \
+markets?" is answerable. "What are the implications of this work?" is not.
+
+---
+
+HONEST ASSESSMENT:
+
+This is not a review. It is also not a celebration. Engage the work as a colleague would — \
+naming where the argument is strongest, where it is thinnest, and where assumption is doing \
+work the evidence cannot yet support.
+
+In empirical_foundation specifically: if the document's argument is built on 3+ data sources \
+with converging conclusions, say so. If it leans on one source treated as decisive, say so. \
+If it asserts causation where the evidence shows correlation, note it. If it generalizes from \
+a specific case to a broader claim, flag the generalization.
+
+You are not required to find flaws. A document that genuinely rests on strong evidence should \
+be described as such, specifically. But if the document has thin spots and you do not name \
+them, you are producing flattery, not acknowledgment.
+
+For connections_to_current_thesis: if her work genuinely CHALLENGES a thesis claim, mark it \
+with relationship: "challenges" and explain the tension. Do not default to "supports" or \
+"extends" when the relationship is actually contested. The thesis is a working document; being \
+told where it is wrong is more valuable than being told where it is right.
+
+---
+
+FAILURE EXAMPLES:
+
+The following outputs would all be failures. Study them to understand what to avoid.
+
+FAIL: "Liz's thoughtful analysis explores the complex dynamics of streaming audience \
+segmentation."
+WHY: Generic adjectives. No specific claim identified.
+
+FAIL: frameworks_extracted: [{"name": "Audience Segmentation Framework", "claim": "Different \
+audiences have different preferences"}]
+WHY: The framework name is generic. The claim is trivial. This doesn't extract anything the \
+document actually argued.
+
+FAIL: empirical_foundation: "The research draws on extensive industry data and demonstrates \
+strong quantitative rigor."
+WHY: "Extensive" and "strong" are evaluations, not descriptions. Name the actual sources.
+
+FAIL: connections_to_current_thesis: [{"thesis_claim": "The thesis discusses content \
+strategy", "relationship": "supports", "reasoning": "This work is relevant to content \
+strategy"}]
+WHY: The thesis claim is abstracted to nothing. The reasoning is tautological. No specific \
+engagement.
+
+---
+
+SUCCESS EXAMPLES:
+
+SUCCEED: "This document argues that streaming hits activate multiple audience segments \
+simultaneously, with cultural saturation requiring three or more segment activations (Section \
+5: Strategic Implications). The underlying claim is that mono-segment content has a structural \
+ceiling regardless of execution quality."
+WHY: Specific argument named. Section cited. Underlying claim articulated.
+
+SUCCEED: frameworks_extracted: [{"name": "Multi-entry-point activation principle", "claim": \
+"Content serving three or more psychographic segments simultaneously is the most reliable path \
+to cultural saturation", "source_section": "Section 5, Principle 2"}]
+WHY: Framework name comes from the document. Claim is specific. Source cited.
+
+---
+
+OUTPUT SCHEMA (produce JSON matching this exactly — nothing else, no preamble, no postamble):
+
+{
+  "artifact_id": "string",
+  "generated_at": "ISO 8601 UTC",
+  "sections": {
+    "what_i_read_this_to_be_arguing": "string",
+    "frameworks_extracted": [
+      {
+        "name": "string",
+        "claim": "string",
+        "source_section": "string or null"
+      }
+    ],
+    "empirical_foundation": "string",
+    "connections_to_current_thesis": [
+      {
+        "thesis_claim": "string",
+        "relationship": "supports|extends|challenges|adjacent",
+        "reasoning": "string"
+      }
+    ],
+    "open_questions": ["string"]
+  },
+  "generation_notes": {
+    "word_count_read": integer,
+    "duration_seconds": number,
+    "model": "string"
+  }
+}"""
+
+
+def build_acknowledge_prompt(
+    artifact: dict,
+    extracted: dict,
+    thesis: dict,
+) -> tuple[str, str]:
+    """Returns (system_prompt, user_message) for the acknowledgment agent."""
+
+    # Format thesis claims
+    thesis_lines = []
+    core_arg = thesis.get("core_argument", "")
+    if core_arg:
+        thesis_lines.append(f"Core argument: {core_arg}\n")
+
+    claims = thesis.get("claims", [])
+    if claims:
+        thesis_lines.append("## Thesis Claims")
+        for c in claims:
+            confidence = c.get("confidence", "")
+            thesis_lines.append(f"- [{confidence}] {c.get('claim', '')}")
+
+    forces = thesis.get("forces", {})
+    if forces:
+        thesis_lines.append("\n## Force Summaries")
+        for force_name, force_data in forces.items():
+            if isinstance(force_data, dict):
+                summary = force_data.get("summary", "")
+                if summary:
+                    thesis_lines.append(f"\n### {force_name.replace('_', ' ').title()}")
+                    thesis_lines.append(summary)
+
+    thesis_text = "\n".join(thesis_lines)
+
+    # Format sections + tables, with truncation safety net
+    MAX_WORDS = 60000
+    word_count = extracted.get("word_count", 0)
+    sections = extracted.get("sections", [])
+    tables = extracted.get("tables", [])
+    truncated = False
+    original_word_count = word_count
+
+    # Build section blocks
+    section_blocks = []
+    for i, section in enumerate(sections):
+        heading = section.get("heading", "")
+        level = section.get("level", 0)
+        content = section.get("content", "")
+
+        block_lines = []
+        if heading:
+            block_lines.append(f"### {heading} [level: {level}]")
+        if content:
+            block_lines.append(content)
+
+        # Attach tables for this section
+        section_tables = [t for t in tables if t.get("section_index") == i]
+        if section_tables:
+            block_lines.append("\n--- TABLES IN THIS SECTION ---")
+            for tbl in section_tables:
+                rows = tbl.get("rows", [])
+                for row in rows:
+                    block_lines.append(" | ".join(str(c) for c in row))
+
+        section_blocks.append("\n".join(block_lines))
+
+    full_sections_text = "\n\n".join(section_blocks)
+
+    # Truncate if over limit
+    words_in_sections = len(full_sections_text.split())
+    if words_in_sections > MAX_WORDS and len(section_blocks) > 4:
+        truncated = True
+        # Keep first 2 and last 2 sections, summarize middle
+        keep_first = section_blocks[:2]
+        keep_last = section_blocks[-2:]
+        middle_count = len(section_blocks) - 4
+        middle_summary = f"[{middle_count} middle sections omitted for length — {words_in_sections - MAX_WORDS} words truncated]"
+        section_blocks = keep_first + [middle_summary] + keep_last
+        full_sections_text = "\n\n".join(section_blocks)
+
+    user_message = f"""# Artifact metadata
+
+Title: {artifact.get('title', 'Untitled')}
+Type: {artifact.get('type', 'unknown')}
+Description: {artifact.get('description') or 'none'}
+
+# Current Charlie thesis
+
+{thesis_text}
+
+# Extracted document content
+
+Word count: {word_count}
+{"[NOTE: Document was truncated from " + str(original_word_count) + " words to fit context. First and last sections intact.]" if truncated else ""}
+
+## Sections
+
+{full_sections_text}
+
+# Generation instructions
+
+Produce the JSON acknowledgment per the schema. The artifact_id is \"{artifact.get('id', '')}\". \
+Return only valid JSON. No preamble, no postamble."""
+
+    return _ACKNOWLEDGE_SYSTEM_PROMPT, user_message
