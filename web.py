@@ -805,7 +805,7 @@ async function submitAdvFeedback(category, findingIndex, adversaryDate) {
       const done = document.getElementById('adv-done-' + category + '-' + findingIndex);
       if (form) form.style.display = 'none';
       if (done) {
-        done.innerHTML = 'Response recorded \u2014 <strong>' + dispLabel + '</strong>. <a href="#" onclick="reopenAdv(\'' + category + '\',' + findingIndex + ');return false;">Change</a>';
+        done.innerHTML = `Response recorded \u2014 <strong>${dispLabel}</strong>. <a href="#" onclick="reopenAdv('${category}',${findingIndex});return false;">Change</a>`;
         done.style.display = 'block';
       }
     } else {
