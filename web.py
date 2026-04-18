@@ -2183,21 +2183,43 @@ function retryAcknowledgment(artifactId) {
   var status = document.getElementById('retry-status');
   btn.disabled = true;
   btn.textContent = 'Charlie is reading\u2026';
-  status.textContent = 'This may take up to 90 seconds.';
+  status.textContent = 'This may take up to 90 seconds. Page will refresh automatically.';
+
   fetch('/api/field/work/' + artifactId + '/reacknowledge', { method: 'POST' })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      if (data.acknowledgment_status === 'complete') {
-        window.location.reload();
-      } else {
+      if (data.status !== 'ok') {
         btn.disabled = false;
-        btn.textContent = 'Retry acknowledgment';
-        status.textContent = 'Failed: ' + (data.acknowledgment_error || 'unknown error');
+        btn.textContent = 'Generate first read';
+        status.textContent = 'Failed: ' + (data.message || 'unknown error');
+        return;
       }
+      // Poll every 8 seconds until complete or failed
+      var polls = 0;
+      var interval = setInterval(function() {
+        polls++;
+        fetch('/api/field/work/' + artifactId + '/status')
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (d.acknowledgment_status === 'complete') {
+              clearInterval(interval);
+              window.location.reload();
+            } else if (d.acknowledgment_status === 'failed') {
+              clearInterval(interval);
+              btn.disabled = false;
+              btn.textContent = 'Generate first read';
+              status.textContent = 'Generation failed — check logs.';
+            } else if (polls >= 20) {
+              clearInterval(interval);
+              status.textContent = 'Still running — refresh the page in a moment.';
+            }
+          })
+          .catch(function() { /* keep polling */ });
+      }, 8000);
     })
     .catch(function(err) {
       btn.disabled = false;
-      btn.textContent = 'Retry acknowledgment';
+      btn.textContent = 'Generate first read';
       status.textContent = 'Request failed: ' + err.message;
     });
 }
@@ -2263,25 +2285,36 @@ def api_field_reacknowledge(artifact_id: str):
     artifact.pop("acknowledgment_error", None)
     state.save_field_artifact(artifact)
 
-    try:
-        run_acknowledge(artifact)
-        ack_path = str(config.field_dir / "acknowledgments" / f"{artifact_id}.json")
-        artifact["acknowledgment_status"] = "complete"
-        artifact["acknowledgment_path"] = ack_path
-    except Exception as exc:
-        _log.error("reacknowledge_failed", artifact_id=artifact_id, exc_info=True)
-        artifact["acknowledgment_status"] = "failed"
-        artifact["acknowledgment_error"] = str(exc)
+    def _run_ack(art):
+        import threading
+        bound = _log.bind(artifact_id=art["id"], thread=threading.current_thread().name)
+        try:
+            run_acknowledge(art)
+            ack_path = str(config.field_dir / "acknowledgments" / f"{art['id']}.json")
+            art["acknowledgment_status"] = "complete"
+            art["acknowledgment_path"] = ack_path
+        except Exception as exc:
+            bound.error("reacknowledge_failed", exc_info=True)
+            art["acknowledgment_status"] = "failed"
+            art["acknowledgment_error"] = str(exc)
+        state.save_field_artifact(art)
 
-    state.save_field_artifact(artifact)
-    _log.info("request_completed", route="/api/field/work/<id>/reacknowledge",
-              method="POST", artifact_id=artifact_id,
-              acknowledgment_status=artifact["acknowledgment_status"])
+    import threading
+    threading.Thread(target=_run_ack, args=(dict(artifact),), daemon=True).start()
+
+    return jsonify({"status": "ok", "id": artifact_id, "acknowledgment_status": "generating"})
+
+
+@app.route("/api/field/work/<artifact_id>/status", methods=["GET"])
+def api_field_work_status(artifact_id: str):
+    artifact = state.load_field_artifact(artifact_id)
+    if not artifact:
+        return jsonify({"status": "error", "message": "Artifact not found"}), 404
     return jsonify({
         "status": "ok",
         "id": artifact_id,
-        "acknowledgment_status": artifact["acknowledgment_status"],
-        "acknowledgment_error": artifact.get("acknowledgment_error"),
+        "acknowledgment_status": artifact.get("acknowledgment_status", "pending"),
+        "extraction_status": artifact.get("extraction_status", "pending"),
     })
 
 
