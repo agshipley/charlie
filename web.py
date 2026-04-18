@@ -1769,7 +1769,7 @@ function uploadFieldWork() {
 
   fetch('/api/field/upload', { method: 'POST', body: formData })
     .then(function(r) {
-      btn.textContent = 'Charlie is reading your work\u2026';
+      btn.textContent = 'Processing\u2026';
       return r.json();
     })
     .then(function(data) {
@@ -2034,7 +2034,9 @@ FIELD_WORK_DETAIL_TEMPLATE = """<!DOCTYPE html>
     <h3>Charlie's First Read</h3>
 
     {% if artifact.acknowledgment_status == 'generating' %}
-    <p class="ack-generating">Charlie is reading this document. This may take up to 90 seconds. <a href="">Refresh the page to check status.</a></p>
+    <p class="ack-generating" style="margin-bottom:14px;">Charlie is reading this document&hellip; If this has been sitting here a while, it may have gotten stuck.</p>
+    <button class="ack-retry-btn" onclick="retryAcknowledgment('{{ artifact.id }}')">Generate first read</button>
+    <div id="retry-status" style="margin-top:10px;font-size:13px;color:#555;"></div>
 
     {% elif artifact.acknowledgment_status == 'failed' %}
     <p style="color:#c0392b;font-size:14px;">Acknowledgment generation failed.</p>
@@ -2401,22 +2403,30 @@ def upload_field_work():
         bound.error("field_save_artifact_failed", exc_info=True)
         return jsonify({"status": "error", "message": "Failed to save artifact metadata"}), 500
 
-    # ── Run acknowledgment (synchronous, only if extraction succeeded) ───
+    # ── Run acknowledgment in background (only if extraction succeeded) ────
+    # Runs in a daemon thread so the upload response returns immediately,
+    # avoiding Railway's ~60s request timeout on the ~70s Opus call.
     if extraction_status == "complete":
         artifact["acknowledgment_status"] = "generating"
         state.save_field_artifact(artifact)
 
-        try:
-            ack = run_acknowledge(artifact)
-            ack_path = str(config.field_dir / "acknowledgments" / f"{artifact_id}.json")
-            artifact["acknowledgment_status"] = "complete"
-            artifact["acknowledgment_path"] = ack_path
-        except Exception as exc:
-            bound.error("acknowledgment_failed_in_upload", exc_info=True)
-            artifact["acknowledgment_status"] = "failed"
-            artifact["acknowledgment_error"] = str(exc)
+        def _run_ack(art):
+            import threading
+            _bound = _log.bind(artifact_id=art["id"], thread=threading.current_thread().name)
+            try:
+                ack = run_acknowledge(art)
+                ack_path = str(config.field_dir / "acknowledgments" / f"{art['id']}.json")
+                art["acknowledgment_status"] = "complete"
+                art["acknowledgment_path"] = ack_path
+            except Exception as exc:
+                _bound.error("acknowledgment_failed_in_upload", exc_info=True)
+                art["acknowledgment_status"] = "failed"
+                art["acknowledgment_error"] = str(exc)
+            state.save_field_artifact(art)
 
-        state.save_field_artifact(artifact)
+        import threading
+        t = threading.Thread(target=_run_ack, args=(dict(artifact),), daemon=True)
+        t.start()
 
     bound.info("upload_complete",
                extraction_status=extraction_status,
