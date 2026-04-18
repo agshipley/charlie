@@ -265,10 +265,114 @@ def _extract_pdf(path: Path) -> dict:
     finally:
         pdf.close()
 
+    # If pdfplumber yielded very little text, try PyMuPDF as fallback.
+    # Browser-print PDFs from news sites often have body text invisible to pdfplumber.
+    total_words = sum(len(s.get("content", "").split()) for s in sections)
+    page_count = max(1, len(sections))
+    if total_words < 150 or (total_words / page_count) < 30:
+        fitz_result = _extract_pdf_fitz(path)
+        fitz_words = sum(len(s.get("content", "").split()) for s in fitz_result.get("sections", []))
+        if fitz_words > total_words:
+            fitz_result["extraction_notes"] = (
+                [f"pdfplumber yielded {total_words} words; PyMuPDF fallback yielded {fitz_words} words — using PyMuPDF"]
+                + fitz_result.get("extraction_notes", [])
+            )
+            return fitz_result
+        notes.append(f"pdfplumber sparse ({total_words} words); PyMuPDF fallback also sparse ({fitz_words} words) — PDF may be image-based")
+
     return {
         "title_extracted": title_extracted,
         "sections": sections,
         "tables": tables,
+        "extraction_notes": notes,
+    }
+
+
+def _extract_pdf_fitz(path: Path) -> dict:
+    """PyMuPDF-based PDF extraction. Better than pdfplumber for browser-print PDFs."""
+    import fitz  # PyMuPDF
+
+    sections = []
+    notes = []
+    title_extracted = None
+
+    try:
+        doc = fitz.open(str(path))
+    except Exception as exc:
+        notes.append(f"PyMuPDF failed to open: {exc}")
+        return _empty(notes)
+
+    try:
+        # Collect all font sizes across all pages to find median for heading detection
+        all_sizes = []
+        for page in doc:
+            try:
+                blocks = page.get_text("dict").get("blocks", [])
+                for b in blocks:
+                    for line in b.get("lines", []):
+                        for span in line.get("spans", []):
+                            sz = span.get("size", 0)
+                            if sz > 0:
+                                all_sizes.append(sz)
+            except Exception:
+                pass
+
+        median_size = sorted(all_sizes)[len(all_sizes) // 2] if all_sizes else 0
+        heading_threshold = median_size * 1.25 if median_size else 0
+
+        current_heading = ""
+        current_level = 1
+        current_parts: list[str] = []
+
+        def flush_section():
+            nonlocal current_heading, current_level, current_parts
+            content = "\n".join(current_parts).strip()
+            if current_heading or content:
+                sections.append({"heading": current_heading, "level": current_level, "content": content})
+            current_heading = ""
+            current_level = 1
+            current_parts = []
+
+        for page_num, page in enumerate(doc, start=1):
+            try:
+                blocks = page.get_text("dict").get("blocks", [])
+                for b in blocks:
+                    if b.get("type") != 0:  # skip image blocks
+                        continue
+                    for line in b.get("lines", []):
+                        line_text = "".join(s.get("text", "") for s in line.get("spans", [])).strip()
+                        if not line_text:
+                            continue
+                        max_size = max((s.get("size", 0) for s in line.get("spans", [])), default=0)
+                        if heading_threshold > 0 and max_size >= heading_threshold:
+                            flush_section()
+                            current_heading = line_text
+                            if page_num == 1 and title_extracted is None:
+                                title_extracted = line_text
+                        else:
+                            current_parts.append(line_text)
+            except Exception as exc:
+                notes.append(f"PyMuPDF page {page_num} error: {exc}")
+
+        flush_section()
+
+        # If heading detection produced nothing useful, fall back to plain page text
+        if not sections:
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                text = page.get_text().strip()
+                if text:
+                    if page_num == 1 and title_extracted is None:
+                        title_extracted = text.splitlines()[0].strip()
+                    sections.append({"heading": f"Page {page_num}", "level": 1, "content": text})
+
+    finally:
+        doc.close()
+
+    return {
+        "title_extracted": title_extracted,
+        "sections": sections,
+        "tables": [],
         "extraction_notes": notes,
     }
 
