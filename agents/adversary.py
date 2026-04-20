@@ -14,6 +14,7 @@ from core.config import config
 from core.logging import get_logger
 from core.state import StateManager
 from core.prompts import build_adversary_prompt
+import core.field_access as field_access
 
 _log = get_logger(__name__)
 
@@ -40,8 +41,12 @@ def run_adversary(brief: dict, run_date: date | None = None) -> dict:
         sessions = state.load_sessions(days_back=30)
         briefs = state.load_recent_briefs(days=14)
 
+        # Load Field Work corpus for pressure-testing
+        fw_corpus = field_access.retrieve_field_work_for_adversary()
+        print(f"[Adversary] Loaded {len(fw_corpus)} Field Work artifact(s) for critique")
+
         # Build prompts
-        system_prompt, user_message = build_adversary_prompt(brief, sessions, briefs)
+        system_prompt, user_message = build_adversary_prompt(brief, sessions, briefs, field_work=fw_corpus)
 
         # Run adversary — Opus only, no tools
         print(f"[Adversary] Running critique ({len(sessions)} sessions, {len(briefs)} prior briefs)...")
@@ -56,6 +61,18 @@ def run_adversary(brief: dict, run_date: date | None = None) -> dict:
         adversary = _parse_adversary(result["text"])
         adversary["run_date"] = run_date.isoformat()
         adversary.setdefault("brief_date", run_date.isoformat())
+
+        # Log field pressure events
+        findings = adversary.get("findings", {})
+        for pressure_type in ("inference_theater", "pattern_exhaustion"):
+            for item in findings.get(pressure_type, []):
+                artifact_ref = item.get("artifact_id") or item.get("underlying_signal", "")
+                _log.info(
+                    "field_adversary_pressure",
+                    brief_date=run_date.isoformat(),
+                    pressure_type=pressure_type,
+                    artifact_id=artifact_ref,
+                )
 
         # Save to data/adversary/YYYY-MM-DD.json
         path = state.save_adversary(adversary, run_date)

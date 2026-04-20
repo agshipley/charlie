@@ -486,7 +486,12 @@ JSON with:
 Return in ```json``` blocks."""
 
 
-def build_adversary_prompt(brief: dict, sessions_last_30: list, briefs_last_14: list) -> tuple[str, str]:
+def build_adversary_prompt(
+    brief: dict,
+    sessions_last_30: list,
+    briefs_last_14: list,
+    field_work: list | None = None,
+) -> tuple[str, str]:
     """Build system prompt + user message for the adversary agent."""
     today = date.today().strftime("%B %d, %Y")
 
@@ -516,6 +521,43 @@ def build_adversary_prompt(brief: dict, sessions_last_30: list, briefs_last_14: 
             if t3.get("headline"):
                 briefs_text += f"  Tier 3: {t3['headline']}\n"
 
+    # ── Field Work section ────────────────────────────────────────────────
+    field_work_system_addendum = ""
+    field_work_user_section = ""
+    if field_work:
+        field_work_system_addendum = """
+
+# Liz's Field Work
+
+You also have access to Liz's authored research and analysis. Use this in two specific ways when critiquing today's brief:
+
+1. SUPPORT: if the brief makes a claim that her Field Work empirically supports or extends, you can note this constructively. This is rare — don't force it.
+
+2. PRESSURE: if the brief leans on a frame or claim that originated in her Field Work WITHOUT independent signal evidence, flag this as a form of inference_theater or pattern_exhaustion. Charlie's thesis absorbing her frameworks is fine; Charlie's daily brief restating her frameworks as independent inference is flattery by attribution-laundering.
+
+Field Work pressure findings go in the existing inference_theater or pattern_exhaustion categories. No new category needed.
+"""
+        fw_lines = ["\n## Liz's Field Work (for pressure-testing)\n"]
+        for entry in field_work:
+            artifact = entry.get("artifact", {})
+            ack = entry.get("acknowledgment")
+            title = artifact.get("title", "Untitled")
+            aid = artifact.get("id", "")
+            fw_lines.append(f"### {title} ({aid})")
+            if ack:
+                ack_sections = ack.get("sections", {})
+                fw_lines.append(
+                    f"Core argument: {ack_sections.get('what_i_read_this_to_be_arguing', '')[:300]}"
+                )
+                frameworks = ack_sections.get("frameworks_extracted", [])
+                if frameworks:
+                    fw_lines.append("Frameworks:")
+                    for fw in frameworks:
+                        fw_lines.append(f"  - {fw.get('name', '')}: {fw.get('claim', '')[:150]}")
+        field_work_user_section = "\n".join(fw_lines)
+
+    system_prompt = ADVERSARY_SYSTEM_PROMPT + field_work_system_addendum
+
     user_message = f"""Today: {today}
 
 ## Today's Brief to Critique
@@ -524,10 +566,11 @@ def build_adversary_prompt(brief: dict, sessions_last_30: list, briefs_last_14: 
 ```
 {sessions_text}
 {briefs_text}
+{field_work_user_section}
 
 Critique this brief. Find what's wrong. Return your findings in the specified JSON format."""
 
-    return ADVERSARY_SYSTEM_PROMPT, user_message
+    return system_prompt, user_message
 
 
 # ── Acknowledgment Prompt ────────────────────────────────────────────────
