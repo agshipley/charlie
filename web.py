@@ -2748,8 +2748,8 @@ _ADMIN_LOG_TEMPLATE = """<!DOCTYPE html>
 
 @app.route("/admin/logs")
 def admin_logs():
-    token = request.args.get("token", "")
-    admin_token = os.getenv("ADMIN_TOKEN", "")
+    token = request.args.get("token", "").strip()
+    admin_token = os.getenv("ADMIN_TOKEN", "").strip()
     if not admin_token or token != admin_token:
         return "Unauthorized", 401
 
