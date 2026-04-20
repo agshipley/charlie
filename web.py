@@ -1726,7 +1726,7 @@ BOOK_TEMPLATE = """<!DOCTYPE html>
             {% endif %}{{ a.format | upper if a.format else '' }} &middot; {{ a.word_count or '—' }} words &middot; {{ a.uploaded_at[:10] if a.uploaded_at else '' }}
           </div>
         </a>
-        <button class="artifact-delete-btn" onclick="deleteFieldArtifact('{{ a.id }}', {{ (a.title or a.filename) | tojson }}, this)" title="Delete">&#215;</button>
+        <button class="artifact-delete-btn" data-id="{{ a.id }}" data-title="{{ (a.title or a.filename) | e }}" onclick="deleteFieldArtifact(this.dataset.id, this.dataset.title, this)" title="Delete">&#215;</button>
       </div>
       {% endfor %}
       {% else %}
