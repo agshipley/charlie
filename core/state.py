@@ -122,6 +122,7 @@ class StateManager:
         proposal.setdefault("iteration", 0)
         proposal.setdefault("max_iterations", 5)
         proposal.setdefault("status", "pending")
+        proposal.setdefault("generated_at", datetime.now().isoformat())
         proposal.setdefault("history", [
             {"iteration": 0, "type": "synthesis", "timestamp": datetime.now().isoformat()}
         ])

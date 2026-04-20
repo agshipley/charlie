@@ -61,11 +61,15 @@ def add_rating(signal_headline: str, signal_type: str, rating: int, brief_date: 
 # ── Shared Nav ───────────────────────────────────────────────────────────
 
 def nav_html(active: str) -> str:
+    proposal, _ = state.load_latest_proposal()
+    has_pending = proposal and proposal.get("status") not in ("published", "discarded")
+    review_cls = "active" if active == "review" else ""
+    review_link = f'  <a href="/thesis/review" class="{review_cls}">Review ●</a>\n' if has_pending else ""
     return f"""<div class="nav">
   <a href="/" class="{'active' if active == 'brief' else ''}">The Morning Loaf</a>
   <a href="/companion" class="{'active' if active == 'companion' else ''}">Companion</a>
   <a href="/thesis" class="{'active' if active == 'thesis' else ''}">Far Mar</a>
-  <a href="/field" class="{'active' if active == 'field' else ''}">The Field</a>
+{review_link}  <a href="/field" class="{'active' if active == 'field' else ''}">The Field</a>
   <a href="/oven" class="{'active' if active == 'oven' else ''}">The Oven</a>
   <a href="/archive" class="{'active' if active == 'archive' else ''}">Archive</a>
   <a href="/run" class="{'active' if active == 'run' else ''}">Run</a>
