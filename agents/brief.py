@@ -14,6 +14,7 @@ from core.config import config
 from core.logging import get_logger
 from core.state import StateManager
 from core.prompts import build_brief_prompt
+import core.field_access as field_access
 
 _log = get_logger(__name__)
 
@@ -34,15 +35,44 @@ def run_brief(findings: dict | None = None, run_date: date | None = None) -> dic
     # Load context
     context = state.load_context()
 
-    # Build the prompt
-    system_prompt = build_brief_prompt(context)
-
     # Format findings for the agent
     if findings is None:
         print("[Brief] No findings provided. Cannot generate brief.")
         _log.info("agent_complete", agent="brief", run_date=run_date.isoformat(),
                   tiers=0, duration_seconds=round(time.monotonic() - _start, 2))
         return {}
+
+    # ── Field Work retrieval for tier-three candidates ────────────────────
+    field_work_context = None
+    best_candidate = None
+    tier3_candidates = [
+        f for f in findings.get("findings", [])
+        if f.get("tier_recommendation") == "your_world"
+    ]
+    if tier3_candidates:
+        # Use the highest-weight candidate as the representative signal
+        best_candidate = max(tier3_candidates, key=lambda f: f.get("implication_weight", 0))
+        fw_results = field_access.retrieve_field_work_for_signal(best_candidate, top_k=3)
+        if fw_results:
+            top = fw_results[0]
+            relevance = top["relevance_score"]
+            artifact_id = top["artifact"]["id"]
+            allowed, reason = field_access.check_citation_caps(artifact_id, relevance, run_date)
+            if allowed:
+                field_work_context = top
+                print(f"[Brief] Field Work citation allowed: {artifact_id} (relevance={relevance:.2f})")
+            else:
+                field_access.record_suppression(
+                    artifact_id=artifact_id,
+                    brief_date=run_date,
+                    signal_id=best_candidate.get("headline", "")[:80],
+                    relevance_score=relevance,
+                    reason=reason,
+                )
+                print(f"[Brief] Field Work citation suppressed: {reason}")
+
+    # Build the prompt (field_work_context may be None)
+    system_prompt = build_brief_prompt(context, field_work_context=field_work_context)
 
     findings_text = json.dumps(findings, indent=2)
     user_message = f"""Generate today's Brief from the following analysis findings.
@@ -75,6 +105,14 @@ Produce the Brief in the specified JSON format."""
     if brief:
         path = state.save_brief(brief, run_date)
         print(f"[Brief] Saved to {path}")
+        # Record citation now that the brief is saved
+        if field_work_context:
+            field_access.record_citation(
+                artifact_id=field_work_context["artifact"]["id"],
+                brief_date=run_date,
+                signal_id=best_candidate.get("headline", "")[:80],
+                relevance_score=field_work_context["relevance_score"],
+            )
 
     # Print the brief for visibility
     _print_brief(brief)

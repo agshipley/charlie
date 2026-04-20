@@ -182,7 +182,7 @@ Return in ```json``` blocks."""
 
 # ── Brief Prompt ─────────────────────────────────────────────────────────
 
-def build_brief_prompt(context: dict) -> str:
+def build_brief_prompt(context: dict, field_work_context: dict | None = None) -> str:
     """Build the system prompt for the brief generator."""
     today = date.today().strftime("%A, %B %d, %Y")
 
@@ -191,6 +191,48 @@ def build_brief_prompt(context: dict) -> str:
     sessions = context.get("sessions", {})
 
     sessions_section = load_sessions_context(sessions)
+
+    # ── Field Work section (tier-three only) ─────────────────────────────
+    field_work_section = ""
+    if field_work_context:
+        artifact = field_work_context.get("artifact", {})
+        matched_spans = field_work_context.get("matched_spans", [])
+        relevance = field_work_context.get("relevance_score", 0.0)
+        ack = field_work_context.get("acknowledgment")
+        frameworks = []
+        if ack:
+            frameworks = ack.get("sections", {}).get("frameworks_extracted", [])
+
+        spans_text = ""
+        if matched_spans:
+            spans_text = "\nRelevant passages:\n" + "\n".join(f'  "{s}"' for s in matched_spans)
+
+        fw_names = ", ".join(fw.get("name", "") for fw in frameworks if fw.get("name"))
+
+        field_work_section = f"""
+# Field Work Citation (tier-three only)
+
+The following Field Work from Liz's own research bears on today's tier-three signal (relevance: {relevance:.2f}).
+
+**Title:** {artifact.get('title', 'Untitled')}
+**Type:** {artifact.get('type', 'unknown')}
+**Frameworks coined:** {fw_names or 'none extracted'}
+{spans_text}
+
+You MAY cite this in tier-three framing only.
+
+ALLOWED: framing the signal's meaning through her research.
+Example: "This moves on a specific gap your audience equation research identified — Netflix is first to a space you argued was open."
+
+FORBIDDEN: making tier three primarily about her research rather than the signal.
+FORBIDDEN: citing her research as the source of the claim rather than contextualization of it.
+FORBIDDEN: citing Field Work in tier one or tier two, ever.
+FORBIDDEN: more than one or two sentences of Field Work framing in tier three.
+
+The signal must stand on its own. Field Work context enriches the framing — one or two sentences at most.
+
+HARD RULE: tier_1 and tier_2 MUST NOT reference Liz's Field Work, her research, or her frameworks under any circumstances. This rule is absolute and has no exceptions.
+"""
 
     return f"""You are the Brief Generator for Charlie, built for Liz Varner.
 
@@ -209,7 +251,7 @@ Key relationships: {json.dumps(slate.get('relationships', []))}
 {THESIS_FORCES}
 
 Use this framework to weight findings. Signals about structural forces (IP pipeline saturation, audience migration patterns, creator-to-institutional bridges) should score higher than routine industry news.
-
+{field_work_section}
 ## Your Job
 Produce The Morning Loaf — three tiers, most impactful first.
 
