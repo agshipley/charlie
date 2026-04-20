@@ -1601,10 +1601,13 @@ BOOK_TEMPLATE = """<!DOCTYPE html>
   .upload-submit-row button:disabled { background: #999; cursor: default; }
   #upload-error { font-size: 13px; color: #c0392b; }
   .artifact-list { }
-  .artifact-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; margin-bottom: 8px; text-decoration: none; color: inherit; display: block; }
+  .artifact-item-wrapper { position: relative; margin-bottom: 8px; }
+  .artifact-item { display: block; padding: 14px 16px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; text-decoration: none; color: inherit; }
   .artifact-item:hover { border-color: #3D5A80; }
   .artifact-name { font-size: 14px; font-weight: 600; color: #1a1a1a; }
   .artifact-meta { font-size: 12px; color: #999; margin-top: 4px; }
+  .artifact-delete-btn { position: absolute; top: 11px; right: 10px; background: none; border: none; cursor: pointer; font-size: 13px; color: #ccc; padding: 2px 6px; border-radius: 3px; line-height: 1; font-family: inherit; }
+  .artifact-delete-btn:hover { color: #888; background: #f5f5f5; }
   .artifact-tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-right: 6px; }
   .tag-type { background: #e8f0fb; color: #3D5A80; }
   .tag-complete { background: #d5f5e3; color: #27ae60; }
@@ -1709,19 +1712,22 @@ BOOK_TEMPLATE = """<!DOCTYPE html>
     <div class="artifact-list">
       {% if artifacts %}
       {% for a in artifacts %}
-      <a class="artifact-item" href="/field/work/{{ a.id }}">
-        <div class="artifact-name">{{ a.title or a.filename }}</div>
-        <div class="artifact-meta">
-          <span class="artifact-tag tag-type">{{ a.type or 'other' }}</span>
-          <span class="artifact-tag {% if a.extraction_status == 'complete' %}tag-complete{% elif a.extraction_status == 'failed' %}tag-failed{% else %}tag-pending{% endif %}">
-            {{ a.extraction_status or 'pending' }}
-          </span>
-          {% if a.acknowledgment_status == 'complete' %}<span class="artifact-tag tag-complete">&#10003; First read</span>
-          {% elif a.acknowledgment_status == 'generating' %}<span class="artifact-tag tag-generating">Charlie is reading&#8230;</span>
-          {% elif a.acknowledgment_status == 'failed' %}<span class="artifact-tag tag-failed">Read failed</span>
-          {% endif %}{{ a.format | upper if a.format else '' }} &middot; {{ a.word_count or '—' }} words &middot; {{ a.uploaded_at[:10] if a.uploaded_at else '' }}
-        </div>
-      </a>
+      <div class="artifact-item-wrapper">
+        <a class="artifact-item" href="/field/work/{{ a.id }}">
+          <div class="artifact-name">{{ a.title or a.filename }}</div>
+          <div class="artifact-meta">
+            <span class="artifact-tag tag-type">{{ a.type or 'other' }}</span>
+            <span class="artifact-tag {% if a.extraction_status == 'complete' %}tag-complete{% elif a.extraction_status == 'failed' %}tag-failed{% else %}tag-pending{% endif %}">
+              {{ a.extraction_status or 'pending' }}
+            </span>
+            {% if a.acknowledgment_status == 'complete' %}<span class="artifact-tag tag-complete">&#10003; First read</span>
+            {% elif a.acknowledgment_status == 'generating' %}<span class="artifact-tag tag-generating">Charlie is reading&#8230;</span>
+            {% elif a.acknowledgment_status == 'failed' %}<span class="artifact-tag tag-failed">Read failed</span>
+            {% endif %}{{ a.format | upper if a.format else '' }} &middot; {{ a.word_count or '—' }} words &middot; {{ a.uploaded_at[:10] if a.uploaded_at else '' }}
+          </div>
+        </a>
+        <button class="artifact-delete-btn" onclick="deleteFieldArtifact('{{ a.id }}', {{ (a.title or a.filename) | tojson }}, this)" title="Delete">&#215;</button>
+      </div>
       {% endfor %}
       {% else %}
       <p class="empty">No Field Work uploaded yet.</p>
@@ -1786,6 +1792,27 @@ function uploadFieldWork() {
       btn.disabled = false;
       btn.textContent = 'Upload';
       if (window.reportClientError) window.reportClientError('field upload failed', { error: String(err) });
+    });
+}
+
+function deleteFieldArtifact(id, title, btn) {
+  if (!confirm('Delete "' + title + '"? This cannot be undone.')) return;
+  var wrapper = btn.closest('.artifact-item-wrapper');
+  btn.disabled = true;
+  fetch('/api/field/' + id, { method: 'DELETE' })
+    .then(function(r) {
+      if (!r.ok) throw new Error('Delete failed (' + r.status + ')');
+      wrapper.remove();
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      var existing = wrapper.querySelector('.delete-error');
+      if (existing) existing.remove();
+      var errEl = document.createElement('span');
+      errEl.className = 'delete-error';
+      errEl.textContent = ' Delete failed.';
+      errEl.style.cssText = 'font-size:11px;color:#c00;margin-left:6px;';
+      wrapper.querySelector('.artifact-meta').appendChild(errEl);
     });
 }
 </script>
@@ -2269,6 +2296,24 @@ def show_field_work(artifact_id: str):
         acknowledgment=acknowledgment,
         nav=nav_html("field"),
     )
+
+
+@app.route("/api/field/<artifact_id>", methods=["DELETE"])
+def api_field_delete(artifact_id: str):
+    """Delete a Field Work artifact and all associated files."""
+    _log.info("request_received", route="/api/field/<id>", method="DELETE", artifact_id=artifact_id)
+    artifact = state.load_field_artifact(artifact_id)
+    if not artifact:
+        return jsonify({"error": "not found"}), 404
+
+    outcomes = state.delete_field_artifact(artifact_id)
+
+    if any(v == "failed" for v in outcomes.values()):
+        _log.error("field_artifact_delete_partial", artifact_id=artifact_id, outcomes=outcomes)
+        return jsonify({"error": "delete failed", "outcomes": outcomes}), 500
+
+    _log.info("field_artifact_deleted", artifact_id=artifact_id)
+    return jsonify({"deleted": artifact_id})
 
 
 @app.route("/api/field/work/<artifact_id>/reacknowledge", methods=["POST"])

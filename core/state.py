@@ -307,6 +307,40 @@ class StateManager:
         path = config.field_dir / "artifacts" / f"{artifact_id}.json"
         return self._read(path)
 
+    def delete_field_artifact(self, artifact_id: str) -> dict:
+        """
+        Delete a Field Work artifact's files from disk.
+
+        Returns dict with per-file outcome:
+          {originals, extracted, acknowledgment, artifact} each "deleted" | "missing" | "failed"
+        """
+        artifact = self.load_field_artifact(artifact_id)
+        stored_filename = artifact.get("stored_filename", "") if artifact else ""
+
+        files = {
+            "originals": config.field_dir / "originals" / stored_filename if stored_filename else None,
+            "extracted": config.field_dir / "extracted" / f"{artifact_id}.json",
+            "acknowledgment": config.field_dir / "acknowledgments" / f"{artifact_id}.json",
+            "artifact": config.field_dir / "artifacts" / f"{artifact_id}.json",
+        }
+
+        outcomes = {}
+        for key, path in files.items():
+            if path is None or not path.exists():
+                outcomes[key] = "missing"
+                continue
+            try:
+                path.unlink()
+                outcomes[key] = "deleted"
+                _log.info("state_delete_success", method="delete_field_artifact",
+                          file=key, path=str(path))
+            except Exception:
+                _log.error("state_delete_failed", method="delete_field_artifact",
+                           file=key, path=str(path), exc_info=True)
+                outcomes[key] = "failed"
+
+        return outcomes
+
     def list_field_artifacts(self) -> list[dict]:
         """Return all field artifacts sorted newest first."""
         artifacts_dir = config.field_dir / "artifacts"
