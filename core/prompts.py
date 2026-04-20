@@ -244,7 +244,11 @@ Return in ```json``` blocks."""
 
 # ── Thesis Prompt ────────────────────────────────────────────────────────
 
-def build_thesis_prompt(current_thesis: dict | None, recent_signals: list) -> str:
+def build_thesis_prompt(
+    current_thesis: dict | None,
+    recent_signals: list,
+    field_work: list | None = None,
+) -> str:
     """Build the system prompt for the thesis synthesizer."""
     today = date.today().strftime("%B %d, %Y")
 
@@ -264,6 +268,60 @@ Evidence base:
 
     signals_summary = json.dumps(recent_signals[:50], indent=2)
 
+    # ── Field Work section ────────────────────────────────────────────────
+    field_work_section = ""
+    if field_work:
+        fw_lines = ["""# Liz's Field Work
+
+Liz has authored the following research and analytical work. This is her own thinking, produced independently. Treat it as authored input to thesis synthesis — not as signal from the world.
+
+Your job when you encounter a claim or framework in her Field Work that bears on the current thesis:
+
+- If her framework extends current thesis claims: propose an extension that explicitly attributes to her work
+- If her framework challenges current thesis claims: propose a revision that engages the tension honestly
+- If her framework supports current thesis claims: note it as independent corroboration in the proposal
+- If her work is adjacent without direct engagement: do not force a connection
+"""]
+        for entry in field_work:
+            artifact = entry.get("artifact", {})
+            extracted = entry.get("extracted", {})
+            acknowledgment = entry.get("acknowledgment")
+
+            aid = artifact.get("id", "")
+            title = artifact.get("title", "Untitled")
+            atype = artifact.get("type", "unknown")
+            uploaded = artifact.get("uploaded_at", "unknown")
+
+            # Truncate full text to keep token budget reasonable (~3000 words per artifact)
+            full_text = extracted.get("full_text", "")
+            words = full_text.split()
+            if len(words) > 3000:
+                full_text = " ".join(words[:3000]) + " [truncated]"
+
+            fw_lines.append(f"---\n## Field Work: {title}")
+            fw_lines.append(f"- ID: {aid}")
+            fw_lines.append(f"- Type: {atype}")
+            fw_lines.append(f"- Uploaded: {uploaded}")
+            fw_lines.append(f"\n### Content\n{full_text}")
+
+            if acknowledgment:
+                ack_sections = acknowledgment.get("sections", {})
+                frameworks = ack_sections.get("frameworks_extracted", [])
+                connections = ack_sections.get("connections_to_current_thesis", [])
+                if frameworks:
+                    fw_lines.append("\n### Frameworks Liz Coined")
+                    for fw in frameworks:
+                        fw_lines.append(f"- **{fw.get('name', '')}**: {fw.get('claim', '')}")
+                if connections:
+                    fw_lines.append("\n### Connections to Current Thesis (from first-read)")
+                    for conn in connections:
+                        fw_lines.append(
+                            f"- [{conn.get('relationship', '?').upper()}] "
+                            f"{conn.get('thesis_claim', '')} — {conn.get('reasoning', '')}"
+                        )
+
+        field_work_section = "\n".join(fw_lines)
+
     return f"""You are the Thesis Synthesizer for Charlie.
 
 Today's date: {today}
@@ -272,6 +330,8 @@ Today's date: {today}
 
 ## Recent Signals (last 7 days)
 {signals_summary}
+
+{field_work_section}
 
 ## Thesis Framework
 {THESIS_FORCES}
@@ -296,6 +356,7 @@ Review signals against the thesis. Propose updates:
 2. Which challenge them?
 3. Are new patterns emerging across the three forces?
 4. Propose specific extensions or revisions.
+5. If Field Work is provided: identify specific engagements between her authored work and this week's synthesis. Empty array is correct if nothing meaningfully engages — do not manufacture engagements.
 
 ## Rules
 - Extensions need evidence from multiple signals or one strong signal
@@ -318,6 +379,13 @@ JSON with:
 - "evidence_cited": array of signal references
 - "confidence_assessment": overall confidence
 - "recommended_watchlist_updates": entities or patterns to add
+- "field_work_engagements": array of objects, each with:
+  - "artifact_id": "fw_..."
+  - "artifact_title": string
+  - "engagement_type": "supports" | "extends" | "challenges" | "adjacent"
+  - "specific_claim_engaged": exact quote or paraphrase of Liz's claim
+  - "thesis_relationship": which existing or proposed thesis claim this engages
+  - "reasoning": 1-2 sentences on the specific nature of the engagement
 
 Return in ```json``` blocks."""
 
