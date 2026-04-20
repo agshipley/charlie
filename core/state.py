@@ -336,6 +336,11 @@ class StateManager:
         path = config.field_dir / "extracted" / f"{artifact_id}.json"
         return self._read(path)
 
+    def load_field_acknowledgment(self, artifact_id: str) -> dict | None:
+        """Load the acknowledgment JSON for a field artifact."""
+        path = config.field_dir / "acknowledgments" / f"{artifact_id}.json"
+        return self._read(path)
+
     # ── Utilities ────────────────────────────────────────────────────────
 
     def _atomic_write_json(self, path: Path, data: dict) -> None:
