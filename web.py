@@ -1222,7 +1222,7 @@ REVIEW_TEMPLATE = """<!DOCTYPE html>
   {{ nav | safe }}
 
   {% if not proposal %}
-  <p class="empty">No proposal available. Far Mar runs on Monday mornings.</p>
+  <p class="empty">No proposal available. Far Mar runs on Saturday mornings.</p>
 
   {% elif proposal.status == 'published' %}
   <div class="status-published">This proposal has been published. <a href="/thesis">View Far Mar →</a></div>
@@ -2531,10 +2531,12 @@ def start_scheduler():
 
     def _scheduler_loop():
         brief_hour = int(os.environ.get("BRIEF_HOUR", "6"))
-        thesis_day = int(os.environ.get("THESIS_DAY", "0"))
+        thesis_day = int(os.environ.get("THESIS_DAY", "5"))
         tz = os.environ.get("BRIEF_TIMEZONE", "America/Los_Angeles")
 
-        print(f"[Scheduler] Started. Brief daily at {brief_hour}:00 {tz}. Thesis Mondays at {brief_hour + 1}:00.")
+        _DAY_NAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+        thesis_day_name = _DAY_NAMES[thesis_day] if 0 <= thesis_day <= 6 else str(thesis_day)
+        print(f"[Scheduler] Started. Brief daily at {brief_hour}:00 {tz}. Thesis {thesis_day_name}s at {brief_hour + 1}:00.")
 
         last_brief_date = None
         last_thesis_date = None
