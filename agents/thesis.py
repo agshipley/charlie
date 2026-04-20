@@ -76,13 +76,13 @@ def run_thesis(days_back: int = 7) -> dict:
         ]
         for s in tier_sessions:
             session_lines.append(
-                f"- [{s['disposition'].upper()}] [{s['thesis_force']}] {s['signal_category']}: {s['insight']} (confidence: {s['confidence']})"
+                f"- [{(s.get('disposition') or '?').upper()}] [{s.get('thesis_force', '?')}] {s.get('signal_category', '')}: {s.get('insight', '')} (confidence: {s.get('confidence', '?')})"
             )
         if freeform_sessions:
             session_lines.append("\nGeneral observations (extract category-level patterns only):")
             for s in freeform_sessions:
                 session_lines.append(
-                    f"- [{s['disposition'].upper()}] [{s['thesis_force']}] {s['insight']} (confidence: {s['confidence']})"
+                    f"- [{(s.get('disposition') or '?').upper()}] [{s.get('thesis_force', '?')}] {s.get('insight', '')} (confidence: {s.get('confidence', '?')})"
                 )
         session_block = "\n".join(session_lines)
 
