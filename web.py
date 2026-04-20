@@ -1211,6 +1211,18 @@ REVIEW_TEMPLATE = """<!DOCTYPE html>
                       font-size: 14px; margin-bottom: 24px; }
   .status-discarded { padding: 16px 20px; background: #f5f5f5; color: #999; border-radius: 6px;
                       font-size: 14px; margin-bottom: 24px; }
+  .fw-card { margin-bottom: 16px; padding: 16px 20px; background: #fafaf8; border: 1px solid #e8e8e0;
+             border-radius: 6px; }
+  .fw-card-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .fw-title { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+  .fw-type { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; padding: 2px 7px;
+             border-radius: 10px; }
+  .fw-type-challenges { background: #fde8e8; color: #c0392b; }
+  .fw-type-extends { background: #e8f0fb; color: #3D5A80; }
+  .fw-type-supports { background: #d5f5e3; color: #1a7a45; }
+  .fw-claim { font-size: 13px; color: #555; font-style: italic; margin-bottom: 6px; border-left: 2px solid #ddd; padding-left: 10px; }
+  .fw-relationship { font-size: 12px; color: #999; margin-bottom: 6px; }
+  .fw-reasoning { font-size: 13px; color: #333; line-height: 1.55; }
 </style>
 <script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
@@ -1310,6 +1322,25 @@ REVIEW_TEMPLATE = """<!DOCTYPE html>
       <label><input type="radio" name="flag-{{ item.id }}" value="reject" {{ 'checked' if item.flag == 'reject' }}> Reject</label>
     </div>
     <textarea class="annotation-field" placeholder="Your response…">{{ item.annotation or '' }}</textarea>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if proposal.field_work_engagements %}
+  <div class="section-label">Field Work Engagements</div>
+  {% for fw in proposal.field_work_engagements %}
+  <div class="fw-card">
+    <div class="fw-card-header">
+      <span class="fw-title">{{ fw.artifact_title }}</span>
+      <span class="fw-type fw-type-{{ fw.engagement_type }}">{{ fw.engagement_type }}</span>
+    </div>
+    {% if fw.thesis_relationship %}
+    <div class="fw-relationship">↳ {{ fw.thesis_relationship }}</div>
+    {% endif %}
+    {% if fw.specific_claim_engaged %}
+    <div class="fw-claim">{{ fw.specific_claim_engaged[:200] }}{% if fw.specific_claim_engaged|length > 200 %}…{% endif %}</div>
+    {% endif %}
+    <div class="fw-reasoning">{{ fw.reasoning }}</div>
   </div>
   {% endfor %}
   {% endif %}
