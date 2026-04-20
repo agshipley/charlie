@@ -370,6 +370,50 @@ class StateManager:
         path = config.field_dir / "extracted" / f"{artifact_id}.json"
         return self._read(path)
 
+    # ── Oven Takes ───────────────────────────────────────────────────────
+
+    def save_take(self, take: dict) -> Path:
+        """Save a take to data/oven/takes/{take_id}.json."""
+        path = config.oven_dir / "takes" / f"{take['take_id']}.json"
+        _log.debug("state_write_attempt", method="save_take", path=str(path))
+        try:
+            self._atomic_write_json(path, take)
+        except Exception:
+            _log.error("state_write_failed", method="save_take", path=str(path), exc_info=True)
+            raise
+        return path
+
+    def load_take(self, take_id: str) -> dict | None:
+        """Load a single take by ID."""
+        path = config.oven_dir / "takes" / f"{take_id}.json"
+        return self._read(path)
+
+    def list_takes(self) -> list[dict]:
+        """Return all takes sorted newest first."""
+        takes_dir = config.oven_dir / "takes"
+        if not takes_dir.exists():
+            return []
+        takes = []
+        for p in takes_dir.glob("*.json"):
+            data = self._read(p)
+            if data:
+                takes.append(data)
+        takes.sort(key=lambda t: t.get("generated_at", ""), reverse=True)
+        return takes
+
+    def delete_take(self, take_id: str) -> str:
+        """Delete a take file. Returns 'deleted', 'missing', or 'failed'."""
+        path = config.oven_dir / "takes" / f"{take_id}.json"
+        if not path.exists():
+            return "missing"
+        try:
+            path.unlink()
+            _log.info("state_delete_success", method="delete_take", take_id=take_id)
+            return "deleted"
+        except Exception:
+            _log.error("state_delete_failed", method="delete_take", take_id=take_id, exc_info=True)
+            return "failed"
+
     # ── Utilities ────────────────────────────────────────────────────────
 
     def _atomic_write_json(self, path: Path, data: dict) -> None:

@@ -697,3 +697,151 @@ Produce the JSON acknowledgment per the schema. The artifact_id is \"{artifact.g
 Return only valid JSON. No preamble, no postamble."""
 
     return _ACKNOWLEDGE_SYSTEM_PROMPT, user_message
+
+
+# ── Oven Prompt ──────────────────────────────────────────────────────────
+
+def build_oven_prompt(
+    user_prompt: str,
+    thesis: dict | None,
+    recent_briefs: list[dict],
+    field_artifacts: list[dict],
+    context: dict | None,
+    recent_sessions: list[dict],
+) -> tuple[str, str]:
+    """Build system + user prompts for the Oven take generator."""
+    today = date.today().strftime("%B %d, %Y")
+
+    system_prompt = f"""You are Charlie's Oven — a strategic take generator for Liz Tigelaar, an entertainment industry executive focused on the creator-to-scripted opportunity.
+
+Today: {today}
+
+{THESIS_FORCES}
+
+## Liz's Intelligence Baseline
+Liz reads the Charlie morning brief daily. She already knows the macro thesis. She does not need re-orientation. When she submits a prompt to the Oven, she is asking for a focused, high-quality strategic take — a genuine synthesis of what she knows, what the signals say, and what the field documents reveal.
+
+## What a Good Take Looks Like
+- **situation**: 2-3 sentences. Ground truth as of today — the specific situation Liz is asking about.
+- **whats_on_their_mind**: 2-3 sentences. What is the company, person, or market actor most likely thinking right now? What pressure, opportunity, or calculation are they navigating?
+- **worth_raising**: 3-6 items. Specific, actionable observations Liz could raise in a meeting or use to sharpen her positioning. Not obvious. Not generic.
+- **watch_for**: 3-5 items. Signals that would confirm or invalidate this take. Forward-looking. Specific.
+- **open_loops**: 2-4 items. Questions the available information can't yet answer. Where is the picture incomplete?
+
+## Hard Rules
+- Do not summarize the thesis framework back to Liz. She built it.
+- Do not include vague corporate-speak ("this represents an opportunity," "the landscape is evolving").
+- Worth_raising items must be grounded in specific evidence from the briefs or Field Work — not general reasoning.
+- Be direct. Liz is asking for your best read, not a hedge.
+- generation_notes: 1-2 sentences on what sources most informed this take and any significant gaps.
+
+Return a single JSON object:
+{{
+  "situation": "...",
+  "whats_on_their_mind": "...",
+  "worth_raising": ["...", "..."],
+  "watch_for": ["...", "..."],
+  "open_loops": ["...", "..."],
+  "generation_notes": "..."
+}}
+
+Return only valid JSON. No preamble. No postamble."""
+
+    # ── Context Assembly ──────────────────────────────────────────────────
+
+    # Thesis
+    thesis_block = ""
+    if thesis:
+        claims = thesis.get("claims", [])
+        if claims:
+            thesis_block = "## Current Thesis Claims\n" + "\n".join(
+                f"- [{c.get('force', '?').upper()}] {c.get('claim', '')}" for c in claims[:10]
+            )
+
+    # Profile / slate / watching
+    context_block = ""
+    if context:
+        profile = context.get("profile", {})
+        slate = context.get("slate", {})
+        watching = context.get("watching", {})
+        parts = []
+        if profile.get("positioning"):
+            parts.append(f"Positioning: {profile['positioning']}")
+        if slate.get("projects"):
+            parts.append(f"Active slate: {json.dumps(slate['projects'])}")
+        if watching.get("active"):
+            parts.append(f"Watching: {json.dumps(watching['active'])}")
+        if parts:
+            context_block = "## Liz's Current Context\n" + "\n".join(parts)
+
+    # Recent sessions
+    sessions_block = ""
+    if recent_sessions:
+        lines = ["## Recent Session Conclusions (last 7 days)"]
+        for s in recent_sessions[:5]:
+            d = s.get("brief_date", s.get("date", ""))
+            conclusions = s.get("key_conclusions", [])
+            if conclusions:
+                lines.append(f"\n{d}:")
+                for c in conclusions[:3]:
+                    lines.append(f"  - {c}")
+        sessions_block = "\n".join(lines)
+
+    # Recent briefs — truncate to keep 14 max, drop oldest if needed
+    briefs_to_use = recent_briefs[:14]
+    briefs_block = ""
+    if briefs_to_use:
+        lines = ["## Recent Brief Highlights (last 14 days)"]
+        for b in briefs_to_use:
+            d = b.get("date", "")
+            tier3 = b.get("your_world", {})
+            tier2 = b.get("market_map", {})
+            tier1 = b.get("signal_log", {})
+            tier3_items = tier3.get("findings", []) if isinstance(tier3, dict) else []
+            tier2_items = tier2.get("findings", []) if isinstance(tier2, dict) else []
+            tier1_items = tier1.get("findings", []) if isinstance(tier1, dict) else []
+            all_items = tier3_items[:2] + tier2_items[:2] + tier1_items[:1]
+            if all_items:
+                lines.append(f"\n**{d}**")
+                for item in all_items:
+                    lines.append(f"  - {item.get('headline', '')}")
+        briefs_block = "\n".join(lines)
+
+    # Field Work — newest first, truncate content at 1500 words each
+    field_block = ""
+    if field_artifacts:
+        lines = ["## Field Work (Liz's Reference Documents)"]
+        for a in field_artifacts[:8]:
+            title = a.get("title", "Untitled")
+            art_type = a.get("type", "")
+            fw_terms = ", ".join((a.get("acknowledgment") or {}).get("framework_terms", [])[:5])
+            connections = " | ".join((a.get("acknowledgment") or {}).get("thesis_connections", [])[:2])
+            content_raw = (a.get("extracted_content") or {}).get("full_text", "")
+            words = content_raw.split()
+            if len(words) > 1500:
+                content_raw = " ".join(words[:1500]) + " [truncated]"
+            lines.append(f"\n### {title} ({art_type})")
+            if fw_terms:
+                lines.append(f"Framework terms: {fw_terms}")
+            if connections:
+                lines.append(f"Thesis connections: {connections}")
+            if content_raw:
+                lines.append(f"\n{content_raw}")
+        field_block = "\n".join(lines)
+
+    # Assemble user message
+    sections = [f"# Liz's Prompt\n\n{user_prompt}"]
+    if thesis_block:
+        sections.append(thesis_block)
+    if context_block:
+        sections.append(context_block)
+    if sessions_block:
+        sections.append(sessions_block)
+    if briefs_block:
+        sections.append(briefs_block)
+    if field_block:
+        sections.append(field_block)
+    sections.append("Return the JSON take object now.")
+
+    user_message = "\n\n".join(sections)
+    return system_prompt, user_message

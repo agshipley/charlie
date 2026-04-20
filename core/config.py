@@ -25,7 +25,7 @@ class Config:
         # Ensure data directories exist
         for subdir in ["signals", "briefs", "thesis", "thesis/history", "watchlists", "adversary", "logs",
                        "field", "field/artifacts", "field/originals", "field/extracted",
-                       "field/acknowledgments"]:
+                       "field/acknowledgments", "oven/takes"]:
             (self.data_dir / subdir).mkdir(parents=True, exist_ok=True)
 
         # Scheduling
@@ -51,6 +51,10 @@ class Config:
     @property
     def field_dir(self):
         return self.data_dir / "field"
+
+    @property
+    def oven_dir(self):
+        return self.data_dir / "oven"
 
 
 config = Config()

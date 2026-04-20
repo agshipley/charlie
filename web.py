@@ -14,6 +14,7 @@ from core.state import StateManager
 from core.logging import configure_logging, get_logger
 from core.field_extract import extract_artifact
 from agents.acknowledge import run_acknowledge, load_acknowledgment
+from agents.oven import run_oven
 
 configure_logging()
 _log = get_logger(__name__)
@@ -65,6 +66,7 @@ def nav_html(active: str) -> str:
   <a href="/companion" class="{'active' if active == 'companion' else ''}">Companion</a>
   <a href="/thesis" class="{'active' if active == 'thesis' else ''}">Far Mar</a>
   <a href="/field" class="{'active' if active == 'field' else ''}">The Field</a>
+  <a href="/oven" class="{'active' if active == 'oven' else ''}">The Oven</a>
   <a href="/archive" class="{'active' if active == 'archive' else ''}">Archive</a>
   <a href="/run" class="{'active' if active == 'run' else ''}">Run</a>
 </div>"""
@@ -2521,6 +2523,262 @@ def upload_field_work():
         "extraction_status": extraction_status,
         "acknowledgment_status": artifact["acknowledgment_status"],
     })
+
+
+
+# ── Oven Templates & Routes ───────────────────────────────────────────────────
+
+_OVEN_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charlie — The Oven</title>
+<style>
+  """ + SHARED_STYLES + """
+  .prompt-form { margin-bottom: 40px; }
+  .prompt-label { font-size: 13px; color: #666; margin-bottom: 8px; display: block; }
+  .prompt-input { width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 6px;
+                  font-size: 15px; font-family: inherit; resize: vertical; min-height: 80px;
+                  background: white; color: #1a1a1a; }
+  .prompt-input:focus { outline: none; border-color: #aaa; }
+  .prompt-row { display: flex; gap: 10px; align-items: flex-start; margin-top: 10px; }
+  .generate-btn { padding: 10px 22px; background: #1a1a1a; color: white; border: none;
+                  border-radius: 6px; font-size: 14px; cursor: pointer; white-space: nowrap; }
+  .generate-btn:hover { background: #333; }
+  .generate-btn:disabled { background: #bbb; cursor: not-allowed; }
+  .generating-msg { font-size: 13px; color: #999; display: none; padding-top: 12px; }
+
+  .takes-header { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #bbb;
+                  margin-bottom: 12px; }
+  .take-item { background: white; border: 1px solid #e0e0e0; border-radius: 6px;
+               padding: 16px 18px; margin-bottom: 10px; position: relative; }
+  .take-item-title { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+  .take-item-title a { color: #1a1a1a; text-decoration: none; }
+  .take-item-title a:hover { text-decoration: underline; }
+  .take-item-meta { font-size: 12px; color: #bbb; }
+  .take-delete-btn { position: absolute; top: 12px; right: 12px; background: none; border: none;
+                     cursor: pointer; color: #ccc; font-size: 16px; line-height: 1; padding: 2px 6px; }
+  .take-delete-btn:hover { color: #c0392b; }
+</style>
+</head>
+<body>
+<div class="container">
+  {{ nav | safe }}
+  <div class="header">
+    <h1>The Oven</h1>
+    <div class="sub">On-demand strategic takes</div>
+  </div>
+
+  <div class="prompt-form">
+    <label class="prompt-label">What do you want a take on?</label>
+    <textarea class="prompt-input" id="oven-prompt" placeholder="e.g. Katherine Pope and the Sony nonfiction restructuring, what's Audiochuck's next move, where does Netflix's podcast strategy land..."></textarea>
+    <div class="prompt-row">
+      <button class="generate-btn" id="generate-btn" onclick="generateTake()">Generate Take</button>
+      <span class="generating-msg" id="generating-msg">Generating... this takes 30-60 seconds.</span>
+    </div>
+  </div>
+
+  {% if takes %}
+  <div class="takes-header">Recent Takes</div>
+  {% for t in takes %}
+  <div class="take-item" id="take-{{ t.take_id }}">
+    <div class="take-item-title">
+      <a href="/oven/{{ t.take_id }}">{{ t.prompt[:80] }}{% if t.prompt|length > 80 %}...{% endif %}</a>
+    </div>
+    <div class="take-item-meta">{{ t.generated_at[:10] }}</div>
+    <button class="take-delete-btn" data-id="{{ t.take_id }}"
+            data-prompt="{{ t.prompt[:60] | e }}"
+            onclick="deleteTake(this.dataset.id, this.dataset.prompt, this)">×</button>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p class="empty">No takes yet. Enter a prompt above to generate the first one.</p>
+  {% endif %}
+</div>
+
+<script>
+async function generateTake() {
+  const prompt = document.getElementById('oven-prompt').value.trim();
+  if (!prompt) { return; }
+  const btn = document.getElementById('generate-btn');
+  const msg = document.getElementById('generating-msg');
+  btn.disabled = true;
+  msg.style.display = 'inline';
+
+  try {
+    const resp = await fetch('/api/oven/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({prompt}),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      alert('Error: ' + (err.error || resp.status));
+      return;
+    }
+    const data = await resp.json();
+    window.location.href = '/oven/' + data.take_id;
+  } catch (e) {
+    alert('Network error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    msg.style.display = 'none';
+  }
+}
+
+document.getElementById('oven-prompt').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { generateTake(); }
+});
+
+async function deleteTake(id, prompt, btn) {
+  if (!confirm('Delete take: "' + prompt + '"?')) { return; }
+  try {
+    const resp = await fetch('/api/oven/' + id, {method: 'DELETE'});
+    if (!resp.ok) { alert('Delete failed'); return; }
+    const wrapper = document.getElementById('take-' + id);
+    if (wrapper) { wrapper.remove(); }
+  } catch (e) {
+    alert('Network error: ' + e.message);
+  }
+}
+</script>
+</body>
+</html>"""
+
+_OVEN_DETAIL_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Charlie — Take</title>
+<style>
+  """ + SHARED_STYLES + """
+  .back-link { font-size: 13px; color: #3D5A80; text-decoration: none; display: inline-block; margin-bottom: 20px; }
+  .back-link:hover { text-decoration: underline; }
+  .take-prompt { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .take-meta { font-size: 13px; color: #bbb; margin-bottom: 32px; }
+  .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #bbb;
+                   margin-bottom: 10px; margin-top: 28px; }
+  .section-body { font-size: 15px; line-height: 1.6; color: #1a1a1a; }
+  .section-list { list-style: none; padding: 0; margin: 0; }
+  .section-list li { font-size: 15px; line-height: 1.5; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+  .section-list li:last-child { border-bottom: none; }
+  .section-list li::before { content: "—"; color: #bbb; margin-right: 10px; }
+  .notes-block { margin-top: 32px; padding-top: 16px; border-top: 1px solid #e0e0e0;
+                 font-size: 13px; color: #999; font-style: italic; }
+  .download-link { display: inline-block; margin-top: 10px; font-size: 13px; color: #3D5A80; text-decoration: none; }
+  .download-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+  {{ nav | safe }}
+  <a class="back-link" href="/oven">← The Oven</a>
+
+  <div class="take-prompt">{{ take_record.prompt }}</div>
+  <div class="take-meta">{{ take_record.generated_at[:10] }}</div>
+
+  {% set t = take_record.take %}
+
+  {% if t.situation %}
+  <div class="section-label">Situation</div>
+  <div class="section-body">{{ t.situation }}</div>
+  {% endif %}
+
+  {% if t.whats_on_their_mind %}
+  <div class="section-label">What's on their mind</div>
+  <div class="section-body">{{ t.whats_on_their_mind }}</div>
+  {% endif %}
+
+  {% if t.worth_raising %}
+  <div class="section-label">Worth raising</div>
+  <ul class="section-list">
+    {% for item in t.worth_raising %}<li>{{ item }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if t.watch_for %}
+  <div class="section-label">Watch for</div>
+  <ul class="section-list">
+    {% for item in t.watch_for %}<li>{{ item }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if t.open_loops %}
+  <div class="section-label">Open loops</div>
+  <ul class="section-list">
+    {% for item in t.open_loops %}<li>{{ item }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if t.generation_notes %}
+  <div class="notes-block">{{ t.generation_notes }}</div>
+  {% endif %}
+
+  <div style="margin-top: 24px;">
+    <a class="download-link" href="/oven/{{ take_record.take_id }}/download">↓ Download JSON</a>
+  </div>
+</div>
+</body>
+</html>"""
+
+
+@app.route("/oven")
+def show_oven():
+    _log.debug("request_received", route="/oven", method="GET")
+    takes = state.list_takes()
+    return render_template_string(_OVEN_TEMPLATE, nav=nav_html("oven"), takes=takes)
+
+
+@app.route("/oven/<take_id>")
+def show_take(take_id: str):
+    _log.debug("request_received", route=f"/oven/{take_id}", method="GET")
+    take_record = state.load_take(take_id)
+    if not take_record:
+        return "Take not found", 404
+    return render_template_string(_OVEN_DETAIL_TEMPLATE, nav=nav_html("oven"), take_record=take_record)
+
+
+@app.route("/oven/<take_id>/download")
+def download_take(take_id: str):
+    _log.debug("request_received", route=f"/oven/{take_id}/download", method="GET")
+    take_record = state.load_take(take_id)
+    if not take_record:
+        return "Take not found", 404
+    import io
+    buf = io.BytesIO(json.dumps(take_record, indent=2).encode("utf-8"))
+    slug = take_record["prompt"][:40].replace(" ", "_").replace("/", "-")
+    filename = f"take_{take_id[:8]}_{slug}.json"
+    return send_file(buf, as_attachment=True, download_name=filename, mimetype="application/json")
+
+
+@app.route("/api/oven/generate", methods=["POST"])
+def api_oven_generate():
+    data = request.json or {}
+    prompt = (data.get("prompt") or "").strip()
+    if not prompt:
+        return jsonify({"error": "prompt required"}), 400
+    _log.info("request_received", route="/api/oven/generate", method="POST",
+              prompt_length=len(prompt))
+    try:
+        record = run_oven(prompt)
+        _log.info("request_completed", route="/api/oven/generate", take_id=record["take_id"])
+        return jsonify({"take_id": record["take_id"]})
+    except Exception as exc:
+        _log.error("oven_generate_failed", exc_info=True)
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/oven/<take_id>", methods=["DELETE"])
+def api_oven_delete(take_id: str):
+    _log.info("request_received", route=f"/api/oven/{take_id}", method="DELETE")
+    outcome = state.delete_take(take_id)
+    if outcome == "missing":
+        return jsonify({"error": "not found"}), 404
+    if outcome == "failed":
+        return jsonify({"error": "delete failed"}), 500
+    return jsonify({"deleted": take_id})
 
 
 @app.route("/api/feedback", methods=["POST"])
