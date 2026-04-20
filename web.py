@@ -401,24 +401,36 @@ RUN_TEMPLATE = """<!DOCTYPE html>
 <title>Charlie — Run Pipeline</title>
 <style>
   """ + SHARED_STYLES + """
-  .run-box { margin-top: 24px; padding: 24px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
+  .run-box { margin-top: 24px; padding: 24px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; margin-bottom: 16px; }
   .run-box p { font-size: 15px; color: #333; margin-bottom: 16px; }
+  .run-box h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
 </style>
 <script src="{{ url_for('static', filename='js/observability.js') }}"></script>
 </head>
 <body>
 <div class="container">
   <div class="header">
-    <h1>The Morning Loaf</h1>
-    <div class="sub">Run Pipeline</div>
+    <h1>Run</h1>
+    <div class="sub">Manual pipeline triggers</div>
   </div>
 
   {{ nav | safe }}
 
   <div class="run-box">
-    <p>Run the full daily pipeline: ingestion, analysis, brief generation. Takes ~10 minutes.</p>
-    <form method="POST">
-      <button type="submit" class="btn">Run Now</button>
+    <h3>Daily Pipeline</h3>
+    <p>Ingestion → Analysis → Brief. Takes ~10 minutes.</p>
+    <form method="POST" action="/run">
+      <input type="hidden" name="mode" value="daily">
+      <button type="submit" class="btn">Run Daily Pipeline</button>
+    </form>
+  </div>
+
+  <div class="run-box">
+    <h3>Thesis Synthesis</h3>
+    <p>Generate a new Far Mar proposal from the last 7 days of signals and Field Work. Takes 4–5 minutes. Result will appear at <a href="/thesis/review">/thesis/review</a>.</p>
+    <form method="POST" action="/run">
+      <input type="hidden" name="mode" value="thesis">
+      <button type="submit" class="btn">Run Thesis Synthesis</button>
     </form>
   </div>
 
@@ -433,7 +445,7 @@ RUNNING_TEMPLATE = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Charlie — Running</title>
-<meta http-equiv="refresh" content="600;url=/">
+<meta http-equiv="refresh" content="{{ refresh_seconds }};url={{ redirect_url }}">
 <style>
   """ + SHARED_STYLES + """
   .status-box { margin-top: 24px; padding: 24px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; }
@@ -445,15 +457,15 @@ RUNNING_TEMPLATE = """<!DOCTYPE html>
 <body>
 <div class="container">
   <div class="header">
-    <h1>The Morning Loaf</h1>
-    <div class="sub">Pipeline Running</div>
+    <h1>Running</h1>
+    <div class="sub">{{ run_label }}</div>
   </div>
 
   {{ nav | safe }}
 
   <div class="status-box">
-    <p>The daily pipeline is running in the background.</p>
-    <p class="hint">This page will redirect to The Morning Loaf in 10 minutes, or <a href="/">check now</a>.</p>
+    <p>{{ run_message }}</p>
+    <p class="hint">This page will redirect in {{ refresh_seconds }} seconds, or <a href="{{ redirect_url }}">check now</a>.</p>
   </div>
 
   <div class="footer">Charlie — Entertainment Industry Intelligence</div>
@@ -2903,19 +2915,47 @@ def run_pipeline():
         return render_template_string(RUN_TEMPLATE, nav=nav_html("run"))
 
     import threading
-    def _run():
-        try:
-            from orchestrator import run_daily_pipeline
-            run_daily_pipeline()
-        except Exception as e:
-            _log.error("pipeline_error", trigger="web", exc_info=True)
-            print(f"[Web] Pipeline error: {e}")
+    mode = request.form.get("mode", "daily")
 
-    _log.info("pipeline_triggered", trigger="web")
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
+    if mode == "thesis":
+        def _run_thesis():
+            try:
+                from agents.thesis import run_thesis
+                from core.state import StateManager as _SM
+                from core.render import render_thesis_proposal
+                _log.info("thesis_synthesis_started", trigger="web")
+                proposal = run_thesis(days_back=7)
+                if proposal:
+                    render_thesis_proposal(proposal)
+                _log.info("thesis_synthesis_complete", trigger="web",
+                          has_proposal=bool(proposal))
+            except Exception:
+                _log.error("thesis_synthesis_error", trigger="web", exc_info=True)
 
-    return render_template_string(RUNNING_TEMPLATE, nav=nav_html("run"))
+        thread = threading.Thread(target=_run_thesis, daemon=True)
+        thread.start()
+        _log.info("thesis_synthesis_triggered", trigger="web")
+        return render_template_string(RUNNING_TEMPLATE, nav=nav_html("run"),
+                                      run_label="Thesis Synthesis Running",
+                                      run_message="Thesis synthesis is running. The proposal will appear at /thesis/review when complete.",
+                                      refresh_seconds=360,
+                                      redirect_url="/thesis/review")
+    else:
+        def _run_daily():
+            try:
+                from orchestrator import run_daily_pipeline
+                run_daily_pipeline()
+            except Exception:
+                _log.error("pipeline_error", trigger="web", exc_info=True)
+
+        thread = threading.Thread(target=_run_daily, daemon=True)
+        thread.start()
+        _log.info("pipeline_triggered", trigger="web")
+        return render_template_string(RUNNING_TEMPLATE, nav=nav_html("run"),
+                                      run_label="Daily Pipeline Running",
+                                      run_message="The daily pipeline is running in the background.",
+                                      refresh_seconds=600,
+                                      redirect_url="/")
 
 
 # ── Scheduler ────────────────────────────────────────────────────────────
