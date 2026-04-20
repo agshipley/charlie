@@ -2747,10 +2747,68 @@ def download_take(take_id: str):
     if not take_record:
         return "Take not found", 404
     import io
-    buf = io.BytesIO(json.dumps(take_record, indent=2).encode("utf-8"))
-    slug = take_record["prompt"][:40].replace(" ", "_").replace("/", "-")
-    filename = f"take_{take_id[:8]}_{slug}.json"
-    return send_file(buf, as_attachment=True, download_name=filename, mimetype="application/json")
+    md = _render_take_markdown(take_record)
+    buf = io.BytesIO(md.encode("utf-8"))
+    ts = take_record.get("generated_at", "")[:10]
+    slug = re.sub(r"[^a-z0-9]+", "-", take_record["prompt"][:50].lower()).strip("-")
+    filename = f"charlie-take-{ts}-{slug}.md"
+    return send_file(buf, as_attachment=True, download_name=filename, mimetype="text/markdown")
+
+
+def _render_take_markdown(take_record: dict) -> str:
+    t = take_record.get("take", {})
+    prompt = take_record.get("prompt", "")
+    generated_at = take_record.get("generated_at", "")
+
+    try:
+        dt = datetime.fromisoformat(generated_at)
+        date_str = dt.strftime("%B %d, %Y")
+        time_str = dt.strftime("%I:%M %p").lstrip("0")
+    except (ValueError, AttributeError):
+        date_str = generated_at[:10]
+        time_str = ""
+
+    prompt_line = prompt[:100] + ("..." if len(prompt) > 100 else "")
+
+    lines = [
+        "# Charlie's Take",
+        "",
+        f"**Generated:** {date_str}{', ' + time_str if time_str else ''}  ",
+        f"**On:** {prompt_line}",
+        "",
+        "---",
+    ]
+
+    if t.get("situation"):
+        lines += ["", "## Situation", "", t["situation"]]
+
+    if t.get("whats_on_their_mind"):
+        lines += ["", "## What's on their mind", "", t["whats_on_their_mind"]]
+
+    if t.get("worth_raising"):
+        lines += ["", "## Worth raising", ""]
+        for item in t["worth_raising"]:
+            # If item contains " — " treat first part as topic, rest as angle
+            if " — " in item:
+                topic, angle = item.split(" — ", 1)
+                lines.append(f"- **{topic}** — {angle}")
+            else:
+                lines.append(f"- {item}")
+
+    if t.get("watch_for"):
+        lines += ["", "## Watch for", ""]
+        for item in t["watch_for"]:
+            lines.append(f"- {item}")
+
+    if t.get("open_loops"):
+        lines += ["", "## Open loops", ""]
+        for item in t["open_loops"]:
+            lines.append(f"- {item}")
+
+    if t.get("generation_notes"):
+        lines += ["", "---", "", f"*{t['generation_notes']}*"]
+
+    return "\n".join(lines) + "\n"
 
 
 @app.route("/api/oven/generate", methods=["POST"])
