@@ -2750,6 +2750,10 @@ _ADMIN_LOG_TEMPLATE = """<!DOCTYPE html>
 def admin_logs():
     token = request.args.get("token", "")
     admin_token = os.getenv("ADMIN_TOKEN", "")
+    _log.debug("admin_logs_auth_debug",
+               env_token_len=len(admin_token),
+               req_token_len=len(token),
+               match=token == admin_token)
     if not admin_token or token != admin_token:
         return "Unauthorized", 401
 
