@@ -182,7 +182,7 @@ Return in ```json``` blocks."""
 
 # ── Brief Prompt ─────────────────────────────────────────────────────────
 
-def build_brief_prompt(context: dict) -> str:
+def build_brief_prompt(context: dict, field_work_context: dict | None = None) -> str:
     """Build the system prompt for the brief generator."""
     today = date.today().strftime("%A, %B %d, %Y")
 
@@ -191,6 +191,48 @@ def build_brief_prompt(context: dict) -> str:
     sessions = context.get("sessions", {})
 
     sessions_section = load_sessions_context(sessions)
+
+    # ── Field Work section (tier-three only) ─────────────────────────────
+    field_work_section = ""
+    if field_work_context:
+        artifact = field_work_context.get("artifact", {})
+        matched_spans = field_work_context.get("matched_spans", [])
+        relevance = field_work_context.get("relevance_score", 0.0)
+        ack = field_work_context.get("acknowledgment")
+        frameworks = []
+        if ack:
+            frameworks = ack.get("sections", {}).get("frameworks_extracted", [])
+
+        spans_text = ""
+        if matched_spans:
+            spans_text = "\nRelevant passages:\n" + "\n".join(f'  "{s}"' for s in matched_spans)
+
+        fw_names = ", ".join(fw.get("name", "") for fw in frameworks if fw.get("name"))
+
+        field_work_section = f"""
+# Field Work Citation (tier-three only)
+
+The following Field Work from Liz's own research bears on today's tier-three signal (relevance: {relevance:.2f}).
+
+**Title:** {artifact.get('title', 'Untitled')}
+**Type:** {artifact.get('type', 'unknown')}
+**Frameworks coined:** {fw_names or 'none extracted'}
+{spans_text}
+
+You MAY cite this in tier-three framing only.
+
+ALLOWED: framing the signal's meaning through her research.
+Example: "This moves on a specific gap your audience equation research identified — Netflix is first to a space you argued was open."
+
+FORBIDDEN: making tier three primarily about her research rather than the signal.
+FORBIDDEN: citing her research as the source of the claim rather than contextualization of it.
+FORBIDDEN: citing Field Work in tier one or tier two, ever.
+FORBIDDEN: more than one or two sentences of Field Work framing in tier three.
+
+The signal must stand on its own. Field Work context enriches the framing — one or two sentences at most.
+
+HARD RULE: tier_1 and tier_2 MUST NOT reference Liz's Field Work, her research, or her frameworks under any circumstances. This rule is absolute and has no exceptions.
+"""
 
     return f"""You are the Brief Generator for Charlie, built for Liz Varner.
 
@@ -209,7 +251,7 @@ Key relationships: {json.dumps(slate.get('relationships', []))}
 {THESIS_FORCES}
 
 Use this framework to weight findings. Signals about structural forces (IP pipeline saturation, audience migration patterns, creator-to-institutional bridges) should score higher than routine industry news.
-
+{field_work_section}
 ## Your Job
 Produce The Morning Loaf — three tiers, most impactful first.
 
@@ -244,7 +286,11 @@ Return in ```json``` blocks."""
 
 # ── Thesis Prompt ────────────────────────────────────────────────────────
 
-def build_thesis_prompt(current_thesis: dict | None, recent_signals: list) -> str:
+def build_thesis_prompt(
+    current_thesis: dict | None,
+    recent_signals: list,
+    field_work: list | None = None,
+) -> str:
     """Build the system prompt for the thesis synthesizer."""
     today = date.today().strftime("%B %d, %Y")
 
@@ -264,6 +310,60 @@ Evidence base:
 
     signals_summary = json.dumps(recent_signals[:50], indent=2)
 
+    # ── Field Work section ────────────────────────────────────────────────
+    field_work_section = ""
+    if field_work:
+        fw_lines = ["""# Liz's Field Work
+
+Liz has authored the following research and analytical work. This is her own thinking, produced independently. Treat it as authored input to thesis synthesis — not as signal from the world.
+
+Your job when you encounter a claim or framework in her Field Work that bears on the current thesis:
+
+- If her framework extends current thesis claims: propose an extension that explicitly attributes to her work
+- If her framework challenges current thesis claims: propose a revision that engages the tension honestly
+- If her framework supports current thesis claims: note it as independent corroboration in the proposal
+- If her work is adjacent without direct engagement: do not force a connection
+"""]
+        for entry in field_work:
+            artifact = entry.get("artifact", {})
+            extracted = entry.get("extracted", {})
+            acknowledgment = entry.get("acknowledgment")
+
+            aid = artifact.get("id", "")
+            title = artifact.get("title", "Untitled")
+            atype = artifact.get("type", "unknown")
+            uploaded = artifact.get("uploaded_at", "unknown")
+
+            # Truncate full text to keep token budget reasonable (~3000 words per artifact)
+            full_text = extracted.get("full_text", "")
+            words = full_text.split()
+            if len(words) > 3000:
+                full_text = " ".join(words[:3000]) + " [truncated]"
+
+            fw_lines.append(f"---\n## Field Work: {title}")
+            fw_lines.append(f"- ID: {aid}")
+            fw_lines.append(f"- Type: {atype}")
+            fw_lines.append(f"- Uploaded: {uploaded}")
+            fw_lines.append(f"\n### Content\n{full_text}")
+
+            if acknowledgment:
+                ack_sections = acknowledgment.get("sections", {})
+                frameworks = ack_sections.get("frameworks_extracted", [])
+                connections = ack_sections.get("connections_to_current_thesis", [])
+                if frameworks:
+                    fw_lines.append("\n### Frameworks Liz Coined")
+                    for fw in frameworks:
+                        fw_lines.append(f"- **{fw.get('name', '')}**: {fw.get('claim', '')}")
+                if connections:
+                    fw_lines.append("\n### Connections to Current Thesis (from first-read)")
+                    for conn in connections:
+                        fw_lines.append(
+                            f"- [{conn.get('relationship', '?').upper()}] "
+                            f"{conn.get('thesis_claim', '')} — {conn.get('reasoning', '')}"
+                        )
+
+        field_work_section = "\n".join(fw_lines)
+
     return f"""You are the Thesis Synthesizer for Charlie.
 
 Today's date: {today}
@@ -272,6 +372,8 @@ Today's date: {today}
 
 ## Recent Signals (last 7 days)
 {signals_summary}
+
+{field_work_section}
 
 ## Thesis Framework
 {THESIS_FORCES}
@@ -296,6 +398,7 @@ Review signals against the thesis. Propose updates:
 2. Which challenge them?
 3. Are new patterns emerging across the three forces?
 4. Propose specific extensions or revisions.
+5. If Field Work is provided: identify specific engagements between her authored work and this week's synthesis. Empty array is correct if nothing meaningfully engages — do not manufacture engagements.
 
 ## Rules
 - Extensions need evidence from multiple signals or one strong signal
@@ -318,6 +421,13 @@ JSON with:
 - "evidence_cited": array of signal references
 - "confidence_assessment": overall confidence
 - "recommended_watchlist_updates": entities or patterns to add
+- "field_work_engagements": array of objects, each with:
+  - "artifact_id": "fw_..."
+  - "artifact_title": string
+  - "engagement_type": "supports" | "extends" | "challenges" | "adjacent"
+  - "specific_claim_engaged": exact quote or paraphrase of Liz's claim
+  - "thesis_relationship": which existing or proposed thesis claim this engages
+  - "reasoning": 1-2 sentences on the specific nature of the engagement
 
 Return in ```json``` blocks."""
 
@@ -376,7 +486,12 @@ JSON with:
 Return in ```json``` blocks."""
 
 
-def build_adversary_prompt(brief: dict, sessions_last_30: list, briefs_last_14: list) -> tuple[str, str]:
+def build_adversary_prompt(
+    brief: dict,
+    sessions_last_30: list,
+    briefs_last_14: list,
+    field_work: list | None = None,
+) -> tuple[str, str]:
     """Build system prompt + user message for the adversary agent."""
     today = date.today().strftime("%B %d, %Y")
 
@@ -406,6 +521,43 @@ def build_adversary_prompt(brief: dict, sessions_last_30: list, briefs_last_14: 
             if t3.get("headline"):
                 briefs_text += f"  Tier 3: {t3['headline']}\n"
 
+    # ── Field Work section ────────────────────────────────────────────────
+    field_work_system_addendum = ""
+    field_work_user_section = ""
+    if field_work:
+        field_work_system_addendum = """
+
+# Liz's Field Work
+
+You also have access to Liz's authored research and analysis. Use this in two specific ways when critiquing today's brief:
+
+1. SUPPORT: if the brief makes a claim that her Field Work empirically supports or extends, you can note this constructively. This is rare — don't force it.
+
+2. PRESSURE: if the brief leans on a frame or claim that originated in her Field Work WITHOUT independent signal evidence, flag this as a form of inference_theater or pattern_exhaustion. Charlie's thesis absorbing her frameworks is fine; Charlie's daily brief restating her frameworks as independent inference is flattery by attribution-laundering.
+
+Field Work pressure findings go in the existing inference_theater or pattern_exhaustion categories. No new category needed.
+"""
+        fw_lines = ["\n## Liz's Field Work (for pressure-testing)\n"]
+        for entry in field_work:
+            artifact = entry.get("artifact", {})
+            ack = entry.get("acknowledgment")
+            title = artifact.get("title", "Untitled")
+            aid = artifact.get("id", "")
+            fw_lines.append(f"### {title} ({aid})")
+            if ack:
+                ack_sections = ack.get("sections", {})
+                fw_lines.append(
+                    f"Core argument: {ack_sections.get('what_i_read_this_to_be_arguing', '')[:300]}"
+                )
+                frameworks = ack_sections.get("frameworks_extracted", [])
+                if frameworks:
+                    fw_lines.append("Frameworks:")
+                    for fw in frameworks:
+                        fw_lines.append(f"  - {fw.get('name', '')}: {fw.get('claim', '')[:150]}")
+        field_work_user_section = "\n".join(fw_lines)
+
+    system_prompt = ADVERSARY_SYSTEM_PROMPT + field_work_system_addendum
+
     user_message = f"""Today: {today}
 
 ## Today's Brief to Critique
@@ -414,10 +566,11 @@ def build_adversary_prompt(brief: dict, sessions_last_30: list, briefs_last_14: 
 ```
 {sessions_text}
 {briefs_text}
+{field_work_user_section}
 
 Critique this brief. Find what's wrong. Return your findings in the specified JSON format."""
 
-    return ADVERSARY_SYSTEM_PROMPT, user_message
+    return system_prompt, user_message
 
 
 # ── Acknowledgment Prompt ────────────────────────────────────────────────

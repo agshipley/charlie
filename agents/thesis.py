@@ -14,6 +14,7 @@ from core.config import config
 from core.logging import get_logger
 from core.state import StateManager
 from core.prompts import build_thesis_prompt
+import core.field_access as field_access
 
 _log = get_logger(__name__)
 
@@ -54,8 +55,12 @@ def run_thesis(days_back: int = 7) -> dict:
                   proposal_generated=False, duration_seconds=round(time.monotonic() - _start, 2))
         return {}
 
+    # Load Field Work corpus
+    field_work = field_access.retrieve_field_work_for_thesis_synthesis()
+    print(f"[Thesis] Loaded {len(field_work)} Field Work artifact(s) for synthesis")
+
     # Build the prompt
-    system_prompt = build_thesis_prompt(thesis, recent_signals)
+    system_prompt = build_thesis_prompt(thesis, recent_signals, field_work=field_work)
 
     # Build session block for user message
     session_block = ""
@@ -71,13 +76,13 @@ def run_thesis(days_back: int = 7) -> dict:
         ]
         for s in tier_sessions:
             session_lines.append(
-                f"- [{s['disposition'].upper()}] [{s['thesis_force']}] {s['signal_category']}: {s['insight']} (confidence: {s['confidence']})"
+                f"- [{(s.get('disposition') or '?').upper()}] [{s.get('thesis_force', '?')}] {s.get('signal_category', '')}: {s.get('insight', '')} (confidence: {s.get('confidence', '?')})"
             )
         if freeform_sessions:
             session_lines.append("\nGeneral observations (extract category-level patterns only):")
             for s in freeform_sessions:
                 session_lines.append(
-                    f"- [{s['disposition'].upper()}] [{s['thesis_force']}] {s['insight']} (confidence: {s['confidence']})"
+                    f"- [{(s.get('disposition') or '?').upper()}] [{s.get('thesis_force', '?')}] {s.get('insight', '')} (confidence: {s.get('confidence', '?')})"
                 )
         session_block = "\n".join(session_lines)
 
@@ -111,12 +116,20 @@ the available signals and the thesis subject description in your instructions.{s
         print(f"[Thesis] Extensions proposed: {len(proposal.get('extensions', []))}")
         print(f"[Thesis] Revisions proposed: {len(proposal.get('revisions', []))}")
         print(f"[Thesis] New patterns identified: {len(proposal.get('new_patterns', []))}")
+        fw_engagements = proposal.get("field_work_engagements", [])
+        print(f"[Thesis] Field Work engagements: {len(fw_engagements)}")
         print("[Thesis] ⚠️  Proposal requires Andrew's review before application.")
+        _log.info(
+            "field_thesis_engagement",
+            proposal_date=date.today().isoformat(),
+            num_engagements=len(fw_engagements),
+        )
         _log.info("agent_complete", agent="thesis", days_back=days_back,
                   proposal_generated=True,
                   extensions=len(proposal.get("extensions", [])),
                   revisions=len(proposal.get("revisions", [])),
                   new_patterns=len(proposal.get("new_patterns", [])),
+                  field_work_engagements=len(fw_engagements),
                   duration_seconds=round(time.monotonic() - _start, 2))
     else:
         _log.info("agent_complete", agent="thesis", days_back=days_back,

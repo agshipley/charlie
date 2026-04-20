@@ -414,6 +414,11 @@ class StateManager:
             _log.error("state_delete_failed", method="delete_take", take_id=take_id, exc_info=True)
             return "failed"
 
+    def load_field_acknowledgment(self, artifact_id: str) -> dict | None:
+        """Load the acknowledgment JSON for a field artifact."""
+        path = config.field_dir / "acknowledgments" / f"{artifact_id}.json"
+        return self._read(path)
+
     # ── Utilities ────────────────────────────────────────────────────────
 
     def _atomic_write_json(self, path: Path, data: dict) -> None:

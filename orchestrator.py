@@ -8,14 +8,18 @@ Daily pipeline: Ingestion → Analysis → Brief
 Weekly pipeline: Thesis Synthesis (produces proposal for review)
 
 Usage:
-    python orchestrator.py              # Run the daily pipeline
-    python orchestrator.py --full       # Run daily + thesis synthesis
-    python orchestrator.py --thesis     # Run thesis synthesis only
-    python orchestrator.py --test       # Dry run with verbose output
+    python orchestrator.py                         # Run the daily pipeline
+    python orchestrator.py --full                  # Run daily + thesis synthesis
+    python orchestrator.py --thesis                # Run thesis synthesis only
+    python orchestrator.py --test                  # Dry run with verbose output
+
+Field Phase 2 manual-trigger paths (write to disk, no dry-run):
+    python orchestrator.py --thesis --with-field   # Thesis with Field Work wiring
+    python orchestrator.py --brief --with-field    # Re-run today's brief with Field Work
+    python orchestrator.py --adversary --with-field # Re-run adversary with Field Work
 """
 
 import argparse
-import sys
 from datetime import date, datetime
 
 from core.config import config
@@ -112,6 +116,80 @@ def run_thesis_pipeline(days_back: int = 7):
     return proposal
 
 
+def _confirm(prompt: str) -> bool:
+    """Ask for y/N confirmation. Returns True only on explicit 'y'."""
+    answer = input(f"{prompt} [y/N] ").strip().lower()
+    return answer == "y"
+
+
+def run_thesis_with_field(days_back: int = 7):
+    """Run thesis synthesis with Field Work wiring. Overwrites today's proposal."""
+    today = date.today()
+    print(f"\n{'='*60}")
+    print(f"  CHARLIE — Thesis Synthesis (with Field Work)")
+    print(f"  {today.strftime('%A, %B %d, %Y')}")
+    print(f"{'='*60}\n")
+    if not _confirm("This will overwrite today's thesis proposal. Proceed?"):
+        print("Aborted.")
+        return
+    proposal = run_thesis(days_back)
+    if proposal:
+        md_path = render_thesis_proposal(proposal)
+        print(f"\n[Pipeline] Thesis proposal saved. Readable output: {md_path}")
+    return proposal
+
+
+def run_brief_with_field(run_date: date | None = None):
+    """Re-run today's brief generator with Field Work wiring against saved signals."""
+    from agents.analysis import run_analysis
+    from core.state import StateManager
+    run_date = run_date or date.today()
+    print(f"\n{'='*60}")
+    print(f"  CHARLIE — Brief Generation (with Field Work)")
+    print(f"  {run_date.strftime('%A, %B %d, %Y')}")
+    print(f"{'='*60}\n")
+    if not _confirm(f"This will overwrite today's brief ({run_date.isoformat()}). Proceed?"):
+        print("Aborted.")
+        return
+    state = StateManager()
+    signals = state.load_signals(run_date)
+    if not signals:
+        print(f"[Pipeline] No signals found for {run_date.isoformat()}. Cannot re-run brief.")
+        return
+    print(f"[Pipeline] Loaded {len(signals)} signals for {run_date.isoformat()}")
+    analysis = run_analysis(signals, run_date)
+    findings = analysis.get("findings", [])
+    if not findings:
+        print("[Pipeline] No findings produced. Cannot generate brief.")
+        return
+    brief = run_brief(analysis, run_date)
+    adversary = run_adversary(brief, run_date)
+    md_path = render_brief(brief, signals=signals, findings=analysis, run_date=run_date, adversary=adversary)
+    print(f"\n[Pipeline] Brief saved. Readable output: {md_path}")
+    return brief
+
+
+def run_adversary_with_field(run_date: date | None = None):
+    """Re-run adversary against today's brief with Field Work wiring."""
+    from core.state import StateManager
+    run_date = run_date or date.today()
+    print(f"\n{'='*60}")
+    print(f"  CHARLIE — Adversary Review (with Field Work)")
+    print(f"  {run_date.strftime('%A, %B %d, %Y')}")
+    print(f"{'='*60}\n")
+    if not _confirm(f"This will overwrite today's adversary output ({run_date.isoformat()}). Proceed?"):
+        print("Aborted.")
+        return
+    state = StateManager()
+    brief = state.load_brief(run_date)
+    if not brief:
+        print(f"[Pipeline] No brief found for {run_date.isoformat()}. Run --brief first.")
+        return
+    adversary = run_adversary(brief, run_date)
+    print(f"\n[Pipeline] Adversary output saved for {run_date.isoformat()}.")
+    return adversary
+
+
 def main():
     configure_logging()
     log = get_logger(__name__)
@@ -120,6 +198,9 @@ def main():
     parser = argparse.ArgumentParser(description="Charlie Orchestrator")
     parser.add_argument("--full", action="store_true", help="Run daily pipeline + thesis synthesis")
     parser.add_argument("--thesis", action="store_true", help="Run thesis synthesis only")
+    parser.add_argument("--brief", action="store_true", help="Re-run today's brief against saved signals")
+    parser.add_argument("--adversary", action="store_true", help="Re-run adversary against today's saved brief")
+    parser.add_argument("--with-field", action="store_true", help="Enable Field Work wiring (Phase 2)")
     parser.add_argument("--thesis-days", type=int, default=7, help="Days of signals for thesis (default: 7)")
     parser.add_argument("--date", type=str, default=None, help="Override run date (YYYY-MM-DD)")
     parser.add_argument("--test", action="store_true", help="Dry run with verbose output")
@@ -140,8 +221,29 @@ def main():
         print(f"  Context dir: {config.context_dir}")
         return
 
+    # ── Field Phase 2 manual-trigger paths ───────────────────────────────
+    if args.with_field:
+        if args.thesis:
+            run_thesis_with_field(args.thesis_days)
+        elif args.brief:
+            run_brief_with_field(run_date)
+        elif args.adversary:
+            run_adversary_with_field(run_date)
+        else:
+            print("--with-field requires --thesis, --brief, or --adversary")
+        return
+
+    # ── Standard paths ────────────────────────────────────────────────────
     if args.thesis:
         run_thesis_pipeline(args.thesis_days)
+    elif args.adversary:
+        run_date = run_date or date.today()
+        from core.state import StateManager
+        brief = StateManager().load_brief(run_date)
+        if brief:
+            run_adversary(brief, run_date)
+        else:
+            print(f"No brief found for {run_date.isoformat()}")
     elif args.full:
         run_daily_pipeline(run_date)
         run_thesis_pipeline(args.thesis_days)
