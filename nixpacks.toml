@@ -1,0 +1,5 @@
+# Charlie — Railway (Nixpacks) build config
+# Install wkhtmltopdf so core/render.py can generate brief/thesis PDFs in prod.
+# (Additive: Python toolchain is still auto-detected from requirements.txt.)
+[phases.setup]
+aptPkgs = ["wkhtmltopdf"]

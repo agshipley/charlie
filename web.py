@@ -2963,7 +2963,7 @@ def run_pipeline():
 def start_scheduler():
     import threading
     import time as _time
-    from datetime import datetime as _dt, timedelta
+    from datetime import datetime as _dt, timedelta, timezone
 
     def _scheduler_loop():
         brief_hour = int(os.environ.get("BRIEF_HOUR", "6"))
@@ -2979,7 +2979,7 @@ def start_scheduler():
 
         while True:
             try:
-                utc_now = _dt.utcnow()
+                utc_now = _dt.now(timezone.utc).replace(tzinfo=None)
                 pacific_offset = timedelta(hours=-7)
                 local_now = utc_now + pacific_offset
                 today = local_now.date()
