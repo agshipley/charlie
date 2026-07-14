@@ -685,7 +685,7 @@ COMPANION_TEMPLATE = """<!DOCTYPE html>
     <div class="dc-header-bar">
       <div class="dc-header-title">Dark Comprandon</div>
       {% if adversary and not adversary.null_finding %}
-      <div class="dc-header-sub">Today's adversary found {{ adversary_total }} thing{{ 's' if adversary_total != 1 else '' }} worth pushing back on the brief about. Your responses are logged for Andrew to review. They do not feed back into Charlie's pipeline.</div>
+      <div class="dc-header-sub">Today's adversary found {{ adversary_total }} thing{{ 's' if adversary_total != 1 else '' }} worth pushing back on the brief about. Your responses are reviewed by Andrew and inform improvements he makes by hand — they're never fed automatically into Charlie's pipeline.</div>
       {% else %}
       <div class="dc-header-sub">No adversary output available for today's brief.</div>
       {% endif %}
@@ -3303,6 +3303,202 @@ def admin_logs():
         filter_desc=filter_desc,
         level_filter=level_filter,
         base_url=base_url,
+    )
+
+
+# ── Dark Comprandon Operator Surface ──────────────────────────────────────
+
+_ADV_DISP_LABELS = {"fair_hit": "Fair hit", "partially_right": "Partially right", "off_base": "Off-base"}
+_ADV_CAT_LABELS = {
+    "flattery": "Flattery", "pattern_exhaustion": "Pattern Exhaustion",
+    "inference_theater": "Inference Theater", "missing_story": "Missing Story",
+    "comfortable_framing": "Comfortable Framing",
+}
+
+
+def _adv_finding_text(adversary, category, idx):
+    """Resolve the original adversary finding a feedback entry refers to (best-effort)."""
+    if not adversary or idx is None:
+        return None
+    items = adversary.get("findings", {}).get(category, [])
+    if not isinstance(items, list) or not isinstance(idx, int) or idx < 0 or idx >= len(items):
+        return None
+    it = items[idx]
+    key = (it.get("citation") or it.get("pattern") or it.get("claim")
+           or it.get("phrase") or it.get("signal_reference") or "")
+    return {"key": key, "critique": it.get("critique", "")}
+
+
+def _build_adv_feedback_view():
+    """Summary + date-grouped, finding-enriched entries for the operator surface.
+    Reuses state.load_adversary_feedback() (wide window = all history)."""
+    from collections import Counter
+    entries = state.load_adversary_feedback(days_back=100000)
+    disp_counts = Counter(e.get("disposition") for e in entries)
+    cat_counts = Counter(e.get("category") for e in entries)
+
+    adv_cache = {}
+    groups = {}
+    for e in entries:
+        d = e.get("adversary_date", "")
+        if d not in adv_cache:
+            try:
+                adv_cache[d] = state.load_adversary(date.fromisoformat(d)) if d else None
+            except Exception:
+                adv_cache[d] = None
+        finding = _adv_finding_text(adv_cache[d], e.get("category"), e.get("finding_index"))
+        groups.setdefault(d, []).append({
+            "category": e.get("category"),
+            "category_label": _ADV_CAT_LABELS.get(e.get("category"), e.get("category")),
+            "disposition": e.get("disposition"),
+            "disposition_label": _ADV_DISP_LABELS.get(e.get("disposition"), e.get("disposition")),
+            "finding_index": e.get("finding_index"),
+            "note": (e.get("note") or "").strip(),
+            "finding": finding,
+        })
+    grouped = [
+        {"date": d, "items": sorted(items, key=lambda x: (str(x["category"]),
+            x["finding_index"] if isinstance(x["finding_index"], int) else 0))}
+        for d, items in sorted(groups.items(), key=lambda kv: kv[0], reverse=True)
+    ]
+    return {
+        "total": len(entries),
+        "disp_counts": {k: disp_counts.get(k, 0) for k in ("fair_hit", "partially_right", "off_base")},
+        "cat_counts": {k: cat_counts.get(k, 0) for k in _ADV_CAT_LABELS},
+        "notes_count": sum(1 for e in entries if (e.get("note") or "").strip()),
+        "grouped": grouped,
+    }
+
+
+def _export_adversary_feedback_md(view):
+    """Write the full feedback set to data/adversary/feedback_export.md. Returns the path."""
+    path = config.data_dir / "adversary" / "feedback_export.md"
+    lines = ["# Dark Comprandon — Adversary Feedback Export", ""]
+    lines.append(f"_Generated {datetime.now(timezone.utc).isoformat()} · "
+                 f"{view['total']} responses · {view['notes_count']} with notes_\n")
+    lines.append("## Dispositions")
+    for k in ("fair_hit", "partially_right", "off_base"):
+        lines.append(f"- {_ADV_DISP_LABELS[k]}: {view['disp_counts'][k]}")
+    lines.append("\n## Categories")
+    for k, label in _ADV_CAT_LABELS.items():
+        lines.append(f"- {label}: {view['cat_counts'][k]}")
+    lines.append("")
+    for grp in view["grouped"]:
+        lines.append(f"\n## Brief {grp['date']}\n")
+        for it in grp["items"]:
+            lines.append(f"### {it['category_label']} — {it['disposition_label']} "
+                         f"(finding #{it['finding_index']})")
+            if it["finding"]:
+                if it["finding"]["key"]:
+                    lines.append(f"> {it['finding']['key']}")
+                if it["finding"]["critique"]:
+                    lines.append(f"\nAdversary: {it['finding']['critique']}")
+            if it["note"]:
+                lines.append(f"\n**Reader note:** {it['note']}")
+            lines.append("")
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("\n".join(lines), encoding="utf-8")
+    except Exception as e:
+        _log.error("adv_feedback_export_failed", error=str(e))
+    return path
+
+
+_ADV_FEEDBACK_TEMPLATE = """<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Dark Comprandon — Operator Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: -apple-system, system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 32px 24px; color: #1a1a1a; background: #fafafa; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 20px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .stat { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; font-size: 13px; }
+  .stat b { font-size: 18px; display: block; }
+  .export { font-size: 12px; color: #888; margin: 16px 0 24px; font-family: 'Courier New', monospace; word-break: break-all; }
+  .datehdr { font-size: 15px; font-weight: 700; margin: 28px 0 10px; padding-bottom: 4px; border-bottom: 2px solid #1a1a1a; }
+  .card { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; }
+  .card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .cat { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #555; font-weight: 700; }
+  .badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+  .badge.fair_hit { background: #d4edda; color: #155724; }
+  .badge.partially_right { background: #fff3cd; color: #856404; }
+  .badge.off_base { background: #f8d7da; color: #721c24; }
+  .finding-key { font-style: italic; color: #333; margin-bottom: 6px; font-size: 14px; }
+  .critique { color: #555; font-size: 13px; line-height: 1.5; margin-bottom: 8px; }
+  .note { background: #fffbe6; border-left: 3px solid #f0c000; padding: 10px 12px; font-size: 14px; line-height: 1.6; color: #1a1a1a; }
+  .note-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #a07800; font-weight: 700; margin-bottom: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #eee; }
+  .section-title { font-size: 16px; font-weight: 700; margin: 40px 0 6px; }
+  .empty { color: #999; font-style: italic; }
+</style></head><body>
+  <h1>Dark Comprandon — Operator Review</h1>
+  <div class="sub">Adversary critiques of the daily brief, as rated by the reader. Read-only. Reviewed by Andrew; never an automated input to the pipeline.</div>
+  <div class="stats">
+    <div class="stat"><b>{{ view.total }}</b> total responses</div>
+    <div class="stat"><b>{{ view.disp_counts.fair_hit }}</b> fair hit</div>
+    <div class="stat"><b>{{ view.disp_counts.partially_right }}</b> partially right</div>
+    <div class="stat"><b>{{ view.disp_counts.off_base }}</b> off-base</div>
+    <div class="stat"><b>{{ view.notes_count }}</b> with notes</div>
+  </div>
+  <div class="stats">
+    {% for cat, label in [('flattery','Flattery'),('pattern_exhaustion','Pattern Exhaustion'),('inference_theater','Inference Theater'),('missing_story','Missing Story'),('comfortable_framing','Comfortable Framing')] %}
+    <div class="stat"><b>{{ view.cat_counts[cat] }}</b> {{ label }}</div>
+    {% endfor %}
+  </div>
+  <div class="export">Full export written to {{ export_path }} (regenerated on load)</div>
+  {% if not view.grouped %}<p class="empty">No adversary feedback recorded yet.</p>{% endif %}
+  {% for grp in view.grouped %}
+  <div class="datehdr">Brief {{ grp.date }}</div>
+  {% for it in grp['items'] %}
+  <div class="card">
+    <div class="card-top">
+      <span class="cat">{{ it.category_label }}</span>
+      <span class="badge {{ it.disposition }}">{{ it.disposition_label }}</span>
+      <span style="color:#aaa;font-size:12px;">finding #{{ it.finding_index }}</span>
+    </div>
+    {% if it.finding %}
+      {% if it.finding.key %}<div class="finding-key">{{ it.finding.key }}</div>{% endif %}
+      {% if it.finding.critique %}<div class="critique">{{ it.finding.critique }}</div>{% endif %}
+    {% endif %}
+    {% if it.note %}<div class="note"><div class="note-label">Reader note</div>{{ it.note }}</div>{% endif %}
+  </div>
+  {% endfor %}
+  {% endfor %}
+  <div class="section-title">Per-signal ratings <span style="font-weight:400;color:#888;font-size:13px;">(separate store: data/feedback.json)</span></div>
+  {% if signal_total %}
+  <p class="sub">{{ signal_total }} signal ratings. Also read-only; not fed to the pipeline.</p>
+  <table>
+    <tr><th>Signal type</th><th>Count</th><th>Avg (1–5)</th></tr>
+    {% for row in signal_summary %}
+    <tr><td>{{ row.signal_type }}</td><td>{{ row.count }}</td><td>{{ row.avg }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="empty">No per-signal ratings recorded yet.</p>{% endif %}
+</body></html>"""
+
+
+@app.route("/adversary/feedback")
+def adversary_feedback_page():
+    token = request.args.get("token", "").strip()
+    admin_token = os.getenv("ADMIN_TOKEN", "").strip()
+    if not admin_token or token != admin_token:
+        return "Unauthorized", 401
+
+    view = _build_adv_feedback_view()
+    export_path = _export_adversary_feedback_md(view)
+
+    fb = load_feedback()
+    signal_summary = sorted(
+        [{"signal_type": k, **v} for k, v in fb.get("summary", {}).items()],
+        key=lambda x: x.get("count", 0), reverse=True,
+    )
+    signal_total = len(fb.get("ratings", []))
+
+    return render_template_string(
+        _ADV_FEEDBACK_TEMPLATE, view=view, token=token,
+        export_path=str(export_path),
+        signal_summary=signal_summary, signal_total=signal_total,
     )
 
 
