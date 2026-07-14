@@ -14,6 +14,7 @@ from core.config import config
 from core.logging import get_logger
 from core.state import StateManager
 from core.prompts import build_brief_prompt
+from core.conclusions import gates_injection, append_conclusions, debug_dump_prompt
 import core.field_access as field_access
 
 _log = get_logger(__name__)
@@ -74,6 +75,12 @@ def run_brief(findings: dict | None = None, run_date: date | None = None) -> dic
     # Build the prompt (field_work_context may be None)
     system_prompt = build_brief_prompt(context, field_work_context=field_work_context)
 
+    gates = gates_injection("brief", run_date)
+    if gates:
+        print(f"[Brief] Injecting editorial gates ({len(gates)} chars)")
+        system_prompt += "\n\n" + gates
+    debug_dump_prompt("brief", system_prompt, run_date)
+
     findings_text = json.dumps(findings, indent=2)
     user_message = f"""Generate today's Brief from the following analysis findings.
 
@@ -105,6 +112,7 @@ Produce the Brief in the specified JSON format."""
     if brief:
         path = state.save_brief(brief, run_date)
         print(f"[Brief] Saved to {path}")
+        append_conclusions(brief, run_date)
         # Record citation now that the brief is saved
         if field_work_context:
             field_access.record_citation(

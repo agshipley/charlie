@@ -14,6 +14,7 @@ from core.config import config
 from core.logging import get_logger
 from core.state import StateManager
 from core.prompts import build_analysis_prompt
+from core.conclusions import gates_injection, debug_dump_prompt
 
 _log = get_logger(__name__)
 
@@ -96,6 +97,12 @@ def run_analysis(signals: list[dict] | None = None, run_date: date | None = None
     if session_injection:
         print(f"[Analysis] Injecting session calibration ({len(session_injection)} chars)")
         system_prompt += "\n\n" + session_injection
+
+    gates = gates_injection("analysis", run_date)
+    if gates:
+        print(f"[Analysis] Injecting editorial gates ({len(gates)} chars)")
+        system_prompt += "\n\n" + gates
+    debug_dump_prompt("analysis", system_prompt, run_date)
 
     # Format signals for the agent
     signals_text = json.dumps(signals, indent=2)
