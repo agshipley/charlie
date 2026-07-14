@@ -62,6 +62,10 @@ def append_conclusions(brief: dict, run_date: date) -> None:
         statement = (tier.get("headline") or "").strip()
         if not statement:
             continue
+        # Idempotent by (date, tier): a same-day re-run replaces rather than duplicates,
+        # so force-diversity counts can't be inflated by restarts/re-runs.
+        entries = [e for e in entries
+                   if not (e.get("date") == run_date.isoformat() and e.get("tier") == tier_num)]
         entries.append({
             "date": run_date.isoformat(),
             "tier": tier_num,
