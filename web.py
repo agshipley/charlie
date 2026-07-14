@@ -6,6 +6,7 @@ import os
 import time
 from collections import defaultdict, deque
 from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 import re
 from flask import Flask, render_template_string, request, jsonify, redirect, url_for, send_file
@@ -23,6 +24,9 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024  # 25 MB upload limit
 state = StateManager()
 _log.info("app_started", mode="web")
+
+# Reference to the scheduler daemon thread, set by start_scheduler(); read by /health.
+_SCHEDULER_THREAD = None
 
 
 # ── Feedback Storage ─────────────────────────────────────────────────────
@@ -2958,12 +2962,41 @@ def run_pipeline():
                                       redirect_url="/")
 
 
+@app.route("/health")
+def health():
+    """Unauthenticated liveness + diagnostic endpoint (secondary to the dead-man's-switch)."""
+    status = {}
+    status_path = config.data_dir / "scheduler_status.json"
+    try:
+        if status_path.exists():
+            with open(status_path) as f:
+                status = json.load(f)
+    except Exception:
+        status = {}
+    scheduler_alive = bool(_SCHEDULER_THREAD and _SCHEDULER_THREAD.is_alive())
+    return jsonify({
+        "ok": True,
+        "last_brief_at": status.get("last_brief_at"),
+        "last_thesis_at": status.get("last_thesis_at"),
+        "scheduler_thread_alive": scheduler_alive,
+        "server_time_utc": datetime.now(timezone.utc).isoformat(),
+    })
+
+
 # ── Scheduler ────────────────────────────────────────────────────────────
 
+def _to_local(utc_dt: datetime, tz_name: str) -> datetime:
+    """Convert a UTC datetime to DST-aware local wall-clock time."""
+    if utc_dt.tzinfo is None:
+        utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+    return utc_dt.astimezone(ZoneInfo(tz_name))
+
+
 def start_scheduler():
+    global _SCHEDULER_THREAD
     import threading
     import time as _time
-    from datetime import datetime as _dt, timedelta, timezone
+    from datetime import datetime as _dt, timezone
 
     def _scheduler_loop():
         brief_hour = int(os.environ.get("BRIEF_HOUR", "6"))
@@ -2979,9 +3012,7 @@ def start_scheduler():
 
         while True:
             try:
-                utc_now = _dt.now(timezone.utc).replace(tzinfo=None)
-                pacific_offset = timedelta(hours=-7)
-                local_now = utc_now + pacific_offset
+                local_now = _to_local(_dt.now(timezone.utc), tz)
                 today = local_now.date()
                 current_hour = local_now.hour
 
@@ -3010,6 +3041,7 @@ def start_scheduler():
 
     thread = threading.Thread(target=_scheduler_loop, daemon=True)
     thread.start()
+    _SCHEDULER_THREAD = thread
 
 
 # ── Entry Point ──────────────────────────────────────────────────────────

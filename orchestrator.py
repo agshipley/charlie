@@ -20,7 +20,10 @@ Field Phase 2 manual-trigger paths (write to disk, no dry-run):
 """
 
 import argparse
-from datetime import date, datetime
+import json
+import os
+import urllib.request
+from datetime import date, datetime, timezone
 
 from core.config import config
 from core.logging import configure_logging, get_logger
@@ -30,6 +33,39 @@ from agents.analysis import run_analysis
 from agents.brief import run_brief
 from agents.adversary import run_adversary
 from agents.thesis import run_thesis
+
+
+_STATUS_PATH = config.data_dir / "scheduler_status.json"
+
+
+def _write_status(key: str):
+    """Record a pipeline heartbeat (last_brief_at / last_thesis_at). Never raises."""
+    try:
+        data = {}
+        if _STATUS_PATH.exists():
+            with open(_STATUS_PATH) as f:
+                data = json.load(f)
+        data[key] = datetime.now(timezone.utc).isoformat()
+        tmp = _STATUS_PATH.with_suffix(".tmp")
+        with open(tmp, "w") as f:
+            json.dump(data, f, indent=2)
+        tmp.replace(_STATUS_PATH)
+    except Exception as e:
+        print(f"[Status] Failed to write {key}: {e}")
+
+
+def _ping_deadman():
+    """Ping the dead-man's-switch on a completed brief. Never raises; skips if unset."""
+    url = os.getenv("DEADMAN_PING_URL", "").strip()
+    if not url:
+        print("[Deadman] DEADMAN_PING_URL not set — skipping liveness ping.")
+        return
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "charlie-deadman"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            print(f"[Deadman] Liveness ping sent ({resp.status}).")
+    except Exception as e:
+        print(f"[Deadman] Ping failed (non-fatal): {e}")
 
 
 def run_daily_pipeline(run_date: date | None = None):
@@ -90,6 +126,9 @@ def run_daily_pipeline(run_date: date | None = None):
     print(f"  Finished: {datetime.now().strftime('%H:%M:%S')}")
     print(f"{'='*60}\n")
 
+    _write_status("last_brief_at")
+    _ping_deadman()
+
     return brief
 
 
@@ -113,6 +152,7 @@ def run_thesis_pipeline(days_back: int = 7):
         print(f"  No thesis proposal generated.")
         print(f"{'='*60}\n")
 
+    _write_status("last_thesis_at")
     return proposal
 
 
