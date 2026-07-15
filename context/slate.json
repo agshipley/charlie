@@ -1,6 +1,21 @@
 {
   "projects": [
     {
+      "title": "Strays (Tracy Crosswhite)",
+      "status": "active — set up at network",
+      "type": "book-based scripted",
+      "format": "One-Hour Drama",
+      "genre": ["Crime", "Drama", "Romance"],
+      "logline": "A crime drama for our times — part propulsive investigation, part romance, part character study. An hour-long ongoing series following Tracy Crosswhite, a charismatic but deeply wounded homicide detective, as she relentlessly tackles present day homicides and cold cases in search of the truth for both victims and the loved ones left behind.",
+      "writer": "Liz Hannah",
+      "producer": "Liz Varner",
+      "source": "Book — Robert Dugoni's 12-book Tracy Crosswhite novel series",
+      "buyer_targets": "Hulu (set up)",
+      "notes": "Set up at Hulu with Sony co-financing. Pilot pitched to Hulu. Outline turned in — waiting for Hulu notes. Season One draws from Books 1 and 3 (My Sister's Grave, In the Clearing). Liz Hannah is strong writer attachment. Katherine Pope and Lauren Stein involved because of Liz Hannah's profile. Ali Roland is covering exec and internal champion.",
+      "home": "Sony first-look — active co-financing",
+      "positioning": "Highest-priority project on slate. Strongest Sony relationship activation — full leadership stack engaged. Book IP with 12-book series runway. Hulu buyer attached. Crime procedural with female protagonist, romance element, ongoing series potential."
+    },
+    {
       "title": "American Proof",
       "status": "active — pitching",
       "type": "original scripted",
@@ -11,9 +26,9 @@
       "showrunners": "Dawn Prestwich and Nicole Yorkin (attached EP/showrun)",
       "producer": "Liz Varner",
       "source": "Original",
-      "buyer_targets": "Netflix, Apple TV+ (primary); AMC, Onyx (active); Passed: Paramount, Max, MGM+; Checking: Hulu, Starz",
-      "notes": "Prestige-forward slate lead. No creator economy attachment. Sarah Acosta currently writing Netflix Animation project — existing Netflix relationship. Prestwich and Yorkin strong track record on prestige drama. Pitching actively — AMC and Netflix meetings have occurred. Sony co-financing.",
-      "positioning": "Prestige scripted, female-skewing, Southern gothic with commercial ambition. Travels internationally. Strong talent package. Netflix franchise replacement crisis creates opening for well-packaged prestige projects from outside producers."
+      "buyer_targets": "Netflix, Apple TV+ (primary); AMC, Onyx (active); Passed: Paramount, Max, MGM+, Sony; Checking: Starz",
+      "notes": "Prestige-forward slate lead. No creator economy attachment. Sarah Acosta currently writing Netflix Animation project — existing Netflix relationship. Prestwich and Yorkin strong track record on prestige drama. Pitching actively — AMC and Netflix meetings have occurred. Sony passed due to competitive book in similar world (FX bought it) — their logic was to stay out of the world after not winning the book.",
+      "positioning": "Prestige scripted, female-skewing, Southern gothic with commercial ambition. Travels internationally. Strong talent package. Netflix franchise replacement crisis creates opening for well-packaged prestige projects from outside producers. FX's competitive project is small slate/limited platform — could stall, leaving the world open."
     },
     {
       "title": "Unwell",
@@ -26,7 +41,7 @@
       "producer": "Liz Varner",
       "source": "Podcast",
       "buyer_targets": "Freeform (Sony-aligned, primary)",
-      "notes": "Based on award-winning fiction podcast by Dani and Tobin. Sony attached. Supervisor search active — Sony has passed on Pam Veasey and Erin Maher & Kay Reindl. Kira Snyder in active conversation. Additional candidates pending. Story-driven not creator-led — podcast is source material and audience infrastructure, not a personality brand. Mother-daughter relationship at center examining generational wounds.",
+      "notes": "Based on award-winning fiction podcast by Dani and Tobin. Sony attached. Supervisor search active — Sony has passed on Pam Veasey and Erin Maher & Kay Reindl. Kira Snyder in active conversation. Story-driven not creator-led — podcast is source material and audience infrastructure, not a personality brand. Mother-daughter relationship at center examining generational wounds.",
       "positioning": "Audio-to-scripted pipeline. Pre-built audience from podcast. Psychological horror — prestige genre. Handmaid's Tale register. Freeform Sony-aligned target."
     },
     {
@@ -58,22 +73,51 @@
       "positioning": "High-concept sci-fi thriller. Dream-sharing technology. Tech noir. HBO and Netflix primary targets. Needs supervisor attachment before going out."
     },
     {
+      "title": "Norman the Spy",
+      "status": "spec script",
+      "type": "original scripted",
+      "format": "One-Hour Drama",
+      "genre": ["Action", "Thriller", "Comedy"],
+      "logline": "Absent minded. Technologically incompetent. Verbal diarrhea. These are not traits you usually associate with a CIA agent. But when Professor Norman Moskovitz stumbles into a high-stakes hunt for a stolen nuclear weapon, his idiosyncratic skills outweigh them all, propelling this out-of-step history professor into the world of international espionage.",
+      "writer": "Ben Klein",
+      "director": "Tristram Shapeero",
+      "producer": "Liz Varner, Elena Blekhter, Kevin Fox, Tristram Shapeero",
+      "source": "Original",
+      "buyer_targets": "TBD",
+      "notes": "Spec script stage. Ben Klein writing. Tristram Shapeero attached as director. Priority: medium.",
+      "positioning": "Action-comedy-thriller. Fish-out-of-water espionage. Character-driven comedy with high-stakes plot. Director attachment is a differentiator at spec stage."
+    },
+    {
+      "title": "Mild Bill (Traffic Cop Project)",
+      "status": "early development",
+      "type": "true story scripted",
+      "format": "One-Hour Drama",
+      "genre": ["Crime", "Drama"],
+      "logline": "A forgettable, milquetoast traffic cop discovers his invisibility is the perfect cover for a life of crime — a modern Breaking Bad-esque descent inspired by a real 1980s story, exploring masculinity, wealth inequality, and the death of the American Dream.",
+      "writer": "Ben Klein",
+      "producer": "Liz Varner",
+      "source": "True Story",
+      "buyer_targets": "Sony (primary)",
+      "notes": "Based on a real 1980s story. Early development. Ben Klein attached as writer.",
+      "positioning": "Breaking Bad-esque male descent narrative. True story foundation. Sony target. Early stage — needs development before going out."
+    },
+    {
       "title": "Generational Love",
       "status": "on hold — feature adaptation in discussion",
       "type": "original scripted",
       "format": "One-Hour Drama",
       "genre": ["Romance", "Drama"],
-      "logline": "When a struggling millennial writer returns home to Michigan and discovers her grandmother is losing her memories to Alzheimer's, she races to document the sweeping, complicated love story of Minnie's past — only to find it becoming an unreliable map for her own messy present. A dual-timeline prestige romantic drama about what gets passed down between women across generations, and what gets lost in translation.",
+      "logline": "When a struggling millennial writer returns home to Michigan and discovers her grandmother is losing her memories to Alzheimer's, she races to document the sweeping, complicated love story of Minnie's past — only to find it becoming an unreliable map for her own messy present.",
       "writer": "Beth Schwartz",
       "producer": "Liz Varner",
       "source": "Original",
-      "buyer_targets": "Netflix (primary — pitch pages revised per Sony notes)",
-      "notes": "TV series passed by streamers. Feature adaptation in discussion — keep on slate. Pitch pages revised per Sony notes. Key feedback addressed: Minnie-to-Rachel causal engine, Rachel's character-specific decision-making, moral complexity of both timelines, irreversibility of consequences, prestige framing. Notes delivered to Beth Schwartz. Sony passed at renewal — Liz retained despite the pass.",
+      "buyer_targets": "Netflix (primary)",
+      "notes": "TV series passed by streamers. Feature adaptation in discussion — keep on slate. Pitch pages revised per Sony notes. Sony passed at renewal — Liz retained despite the pass.",
       "positioning": "Dual-timeline prestige romantic drama. Female-skewing. Feature adaptation path being explored. Benched as TV series for now."
     },
     {
       "title": "The Grapevine",
-      "status": "early development — pursuing rights",
+      "status": "under review — rights not yet controlled",
       "type": "book-based scripted",
       "format": "One-Hour Drama",
       "genre": ["Crime", "Drama", "Thriller"],
@@ -81,9 +125,9 @@
       "writer": "Alexandra Sokoloff & Craig Robertson (source authors); showrunner TBD",
       "producer": "Liz Varner",
       "source": "Book — Blackstone Publishing, June 2026 ARC",
-      "buyer_targets": "Peacock, Paramount+, AMC (primary — 45+ female audience); secondary broader platforms",
-      "notes": "Type B IP — Story Quality. No pre-built audience. Casting argument is the audience acquisition strategy: Kate Winslet as Lou, Charles Melton as Ethan. Outstanding questions: series architecture (how many books planned, when does Abby come home), rights and deal structure (prior option activity, film/TV split), showrunner target. Next steps: get three answers from Sokoloff and Robertson's rep, brief Ali informally before literary exec weighs in, move fast — June pub date will get noticed. Sokoloff has screenwriting background.",
-      "positioning": "Working-class female crime procedural. Road spine — I-5 corridor. 45+ female thriller audience chronically underserved. Sheridan-for-women thesis. Winslet/Melton casting argument solves generational audience coalition. Episodic architecture already written in book structure."
+      "buyer_targets": "Peacock, Paramount+, AMC (primary — 45+ female audience)",
+      "notes": "Rights not yet controlled — project under review by Sony. Type B IP — Story Quality. No pre-built audience. Casting argument is the audience acquisition strategy: Kate Winslet as Lou, Charles Melton as Ethan. Outstanding questions: series architecture, rights and deal structure, showrunner target. Sokoloff has screenwriting background.",
+      "positioning": "Working-class female crime procedural. Road spine — I-5 corridor. 45+ female thriller audience chronically underserved. Sheridan-for-women thesis. Winslet/Melton casting argument solves generational audience coalition."
     }
   ],
   "relationships": [
@@ -91,7 +135,7 @@
       "entity": "Sony Pictures Television",
       "type": "studio",
       "nature": "First-look deal through Very Varner Inc — renewed as 1+1, effective through approximately May 2027",
-      "notes": "Katherine Pope runs TV studio, Lauren Stein runs creative, Ali Roland is covering exec. Renewed April 2026 despite studio cutting most deals and Generational Love pass. Active choice to retain. Pope's bandwidth compressed after absorbing nonfiction division — projects need to arrive more fully formed. Sony shifting from studio-as-development-engine to studio-as-financing-and-distribution. Sony has named YouTube utilization and platform-native content as strategic priorities — language ahead of infrastructure, not yet a concrete brief."
+      "notes": "Katherine Pope runs TV studio, Lauren Stein runs creative, Ali Roland is covering exec. Renewed April 2026 despite studio cutting most deals and Generational Love pass. Active choice to retain. Pope's bandwidth compressed after absorbing nonfiction division — projects need to arrive more fully formed. Sony shifting from studio-as-development-engine to studio-as-financing-and-distribution. Sony has named YouTube utilization and platform-native content as strategic priorities — language ahead of infrastructure, not yet a concrete brief. Sony support is real but unevenly distributed based on exec taste and bandwidth — Strays has full leadership stack engaged."
     },
     {
       "entity": "Audiochuck",
@@ -103,17 +147,18 @@
       "entity": "Netflix",
       "type": "platform",
       "nature": "Active buyer — American Proof pitched",
-      "notes": "Sarah Acosta has existing Netflix relationship via animation project. Netflix concentrating prestige scripted — fewer bets, higher stakes, proven talent. Franchise replacement crisis — lost 7 of top 12 scripted shows within 12 months including Stranger Things (32.9M viewers, most-watched series of 2025-26 season). American Proof well-positioned as fully packaged prestige project. Netflix also active on video podcast strategy — daytime video programming block, not a podcast platform."
+      "notes": "Sarah Acosta has existing Netflix relationship via animation project. Netflix concentrating prestige scripted — fewer bets, higher stakes, proven talent. Franchise replacement crisis — lost 7 of top 12 scripted shows within 12 months. American Proof well-positioned as fully packaged prestige project."
+    },
+    {
+      "entity": "Hulu",
+      "type": "platform",
+      "nature": "Active buyer — Strays set up",
+      "notes": "Strays set up at Hulu with Sony co-financing. Outline delivered — waiting for notes."
     },
     {
       "entity": "AMC",
       "type": "platform",
       "nature": "Active buyer — American Proof pitched"
-    },
-    {
-      "entity": "Hulu",
-      "type": "platform",
-      "nature": "Key buyer relationship — American Proof checking"
     },
     {
       "entity": "WME",
@@ -122,13 +167,14 @@
     }
   ],
   "active_conversations": [
-    "American Proof — active pitching, AMC and Netflix meetings occurred, checking Hulu and Starz",
+    "Strays — outline delivered to Hulu, waiting for notes",
+    "American Proof — active pitching, AMC and Netflix meetings occurred, checking Starz",
     "Unwell — supervisor search active, Kira Snyder in conversation",
     "Somnia — supervisor search active before going to buyers",
     "Fox & Hound — Sony Zoom meetings upcoming, supervising producer search via Geoff Silverman and Jennifer Levine",
-    "The Grapevine — pursuing rights, need answers from Sokoloff/Robertson rep",
+    "The Grapevine — under Sony review, pursuing rights",
     "Audiochuck scripted TV role — Matt Shanfield, role still forming",
     "Sony first-look renewal — Katherine Pope/Lauren Stein conversation needed"
   ],
-  "updated_at": "2026-07-14"
+  "updated_at": "2026-07-15"
 }
