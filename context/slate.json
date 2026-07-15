@@ -1,38 +1,134 @@
 {
   "projects": [
-    "Generational Love",
-    "Unwell",
-    "Fox & Hound",
-    "American Proof",
-    "Somnia"
+    {
+      "title": "American Proof",
+      "status": "active — pitching",
+      "type": "original scripted",
+      "format": "One-Hour Drama",
+      "genre": ["Drama"],
+      "logline": "A Southern family drama set in the high-stakes world of Kentucky bourbon. When a rising craft distillery pursues backing from a powerful international conglomerate, it triggers a brutal power struggle with a storied old money bourbon dynasty — pitting two families against each other in a battle for control, relevance, and survival.",
+      "writer": "Sarah Acosta",
+      "showrunners": "Dawn Prestwich and Nicole Yorkin (attached EP/showrun)",
+      "producer": "Liz Varner",
+      "source": "Original",
+      "buyer_targets": "Netflix, Apple TV+ (primary); AMC, Onyx (active); Passed: Paramount, Max, MGM+; Checking: Hulu, Starz",
+      "notes": "Prestige-forward slate lead. No creator economy attachment. Sarah Acosta currently writing Netflix Animation project — existing Netflix relationship. Prestwich and Yorkin strong track record on prestige drama. Pitching actively — AMC and Netflix meetings have occurred. Sony co-financing.",
+      "positioning": "Prestige scripted, female-skewing, Southern gothic with commercial ambition. Travels internationally. Strong talent package. Netflix franchise replacement crisis creates opening for well-packaged prestige projects from outside producers."
+    },
+    {
+      "title": "Unwell",
+      "status": "active development — supervisor search",
+      "type": "podcast-based scripted",
+      "format": "One-Hour Drama",
+      "genre": ["Horror", "Drama"],
+      "logline": "Based on the award-winning fiction podcast, UNWELL is a character-forward psychological horror series that uses genre to explore family, memory, and inherited trauma. Set in a remote Dark Sky community, a disturbing car accident sends Dot Harper into violent visions that force her to reconnect with her estranged daughter — gradually revealing the phenomenon is tied to the town itself, rooted in plausible real-world science.",
+      "writer": "Dani Parker & Tobin Addington",
+      "producer": "Liz Varner",
+      "source": "Podcast",
+      "buyer_targets": "Freeform (Sony-aligned, primary)",
+      "notes": "Based on award-winning fiction podcast by Dani and Tobin. Sony attached. Supervisor search active — Sony has passed on Pam Veasey and Erin Maher & Kay Reindl. Kira Snyder in active conversation. Additional candidates pending. Story-driven not creator-led — podcast is source material and audience infrastructure, not a personality brand. Mother-daughter relationship at center examining generational wounds.",
+      "positioning": "Audio-to-scripted pipeline. Pre-built audience from podcast. Psychological horror — prestige genre. Handmaid's Tale register. Freeform Sony-aligned target."
+    },
+    {
+      "title": "Fox & Hound",
+      "status": "active — pitching to Sony",
+      "type": "book-based scripted",
+      "format": "One-Hour Drama",
+      "genre": ["Crime", "Drama"],
+      "logline": "Husband-and-wife PI team Rick Mason and Laura Peers come out of a grief-driven retirement to work a missing persons case that pulls them back into the ultra-wealthy Los Angeles world Laura was born into — and exposes the dark machinery underneath it.",
+      "writer": "Brian Horiuchi & Rowan Maness (writers); VJ Boyd (Supervising Producer consideration)",
+      "producer": "Liz Varner, VJ Boyd",
+      "source": "Book",
+      "buyer_targets": "Sony (primary — Zoom meetings upcoming)",
+      "notes": "Source: Fox & Hound novel by Brian Horiuchi & Rowan Maness. Previously written script available as supplemental read — originally developed at SK Global with Marcy Ross. Script does not lead — too broadcast-shaped. Lead with the book and brief spoken pitch. Supervising producer search underway via Geoff Silverman (Evoke Entertainment) and Jennifer Levine (Untitled Entertainment). VJ Boyd in consideration. Barbara Stepansky flagged as having direct Sony relationship via Outlander credits. Rowan is YA-published.",
+      "positioning": "Book-first. Crime drama with class dynamics. Husband-wife PI team. Sony Zoom meetings upcoming — lead with book not script."
+    },
+    {
+      "title": "Somnia",
+      "status": "active development — supervisor search",
+      "type": "original scripted",
+      "format": "One-Hour Drama",
+      "genre": ["Sci-Fi", "Thriller", "Crime"],
+      "logline": "When a snuff film surfaces on a revolutionary dream-sharing platform blurring the line between memory and nightmare, a disillusioned tech executive and a morally grey detective are forced into an unlikely partnership — and descend into a dark web conspiracy that threatens the future of the human mind itself.",
+      "writer": "Denise Harkavy",
+      "producer": "Liz Varner",
+      "source": "Original",
+      "buyer_targets": "HBO, Netflix (primary); Apple TV+ (secondary)",
+      "notes": "Pilot and pitch deck complete. Sony passed due to IP conflict — not script quality. Supervisor search active. Top candidates: Veena Sud, Patrick Somerville, Dawn Prestwich & Nicole Yorkin, Simon Kinberg (stretch). Denise has existing relationships with Mickey Fisher, Steven Kane, Dean Georgaris. WME repping the project. Key next step: secure supervisor attachment before taking to buyers.",
+      "positioning": "High-concept sci-fi thriller. Dream-sharing technology. Tech noir. HBO and Netflix primary targets. Needs supervisor attachment before going out."
+    },
+    {
+      "title": "Generational Love",
+      "status": "on hold — feature adaptation in discussion",
+      "type": "original scripted",
+      "format": "One-Hour Drama",
+      "genre": ["Romance", "Drama"],
+      "logline": "When a struggling millennial writer returns home to Michigan and discovers her grandmother is losing her memories to Alzheimer's, she races to document the sweeping, complicated love story of Minnie's past — only to find it becoming an unreliable map for her own messy present. A dual-timeline prestige romantic drama about what gets passed down between women across generations, and what gets lost in translation.",
+      "writer": "Beth Schwartz",
+      "producer": "Liz Varner",
+      "source": "Original",
+      "buyer_targets": "Netflix (primary — pitch pages revised per Sony notes)",
+      "notes": "TV series passed by streamers. Feature adaptation in discussion — keep on slate. Pitch pages revised per Sony notes. Key feedback addressed: Minnie-to-Rachel causal engine, Rachel's character-specific decision-making, moral complexity of both timelines, irreversibility of consequences, prestige framing. Notes delivered to Beth Schwartz. Sony passed at renewal — Liz retained despite the pass.",
+      "positioning": "Dual-timeline prestige romantic drama. Female-skewing. Feature adaptation path being explored. Benched as TV series for now."
+    },
+    {
+      "title": "The Grapevine",
+      "status": "early development — pursuing rights",
+      "type": "book-based scripted",
+      "format": "One-Hour Drama",
+      "genre": ["Crime", "Drama", "Thriller"],
+      "logline": "Taylor Sheridan for women. A middle-aged California history professor converts a family RV into a mobile command center and drives the I-5 corridor to find her missing daughter — building an unlikely coalition of bartenders, sex workers, camp hosts, grieving mothers, and a young journalist along the way.",
+      "writer": "Alexandra Sokoloff & Craig Robertson (source authors); showrunner TBD",
+      "producer": "Liz Varner",
+      "source": "Book — Blackstone Publishing, June 2026 ARC",
+      "buyer_targets": "Peacock, Paramount+, AMC (primary — 45+ female audience); secondary broader platforms",
+      "notes": "Type B IP — Story Quality. No pre-built audience. Casting argument is the audience acquisition strategy: Kate Winslet as Lou, Charles Melton as Ethan. Outstanding questions: series architecture (how many books planned, when does Abby come home), rights and deal structure (prior option activity, film/TV split), showrunner target. Next steps: get three answers from Sokoloff and Robertson's rep, brief Ali informally before literary exec weighs in, move fast — June pub date will get noticed. Sokoloff has screenwriting background.",
+      "positioning": "Working-class female crime procedural. Road spine — I-5 corridor. 45+ female thriller audience chronically underserved. Sheridan-for-women thesis. Winslet/Melton casting argument solves generational audience coalition. Episodic architecture already written in book structure."
+    }
   ],
   "relationships": [
     {
       "entity": "Sony Pictures Television",
       "type": "studio",
       "nature": "First-look deal through Very Varner Inc — renewed as 1+1, effective through approximately May 2027",
-      "notes": "Katherine Pope runs tv studio, Lauren Stein runs creative, Ali Roland is covering exec. Renewed April 2026 despite studio cutting most deals and Generational Love pass. Active choice to retain."
+      "notes": "Katherine Pope runs TV studio, Lauren Stein runs creative, Ali Roland is covering exec. Renewed April 2026 despite studio cutting most deals and Generational Love pass. Active choice to retain. Pope's bandwidth compressed after absorbing nonfiction division — projects need to arrive more fully formed. Sony shifting from studio-as-development-engine to studio-as-financing-and-distribution. Sony has named YouTube utilization and platform-native content as strategic priorities — language ahead of infrastructure, not yet a concrete brief."
     },
     {
       "entity": "Audiochuck",
       "type": "company",
       "nature": "Active opportunity — interviewed for Head of Scripted TV under Matt Shanfield",
-      "notes": "Audiochuck expanding into TV/film vertical with Chernin investment. Matt Shanfield hired March 2026. UTA repping."
+      "notes": "Audiochuck expanding into TV/film vertical with Chernin investment. Matt Shanfield hired March 2026. UTA repping. Conversation was introductory — role definition still forming. Non-exclusive windowing structure correct for brand. Scripted adaptations sell project by project, no blanket obligations. Ashley Flowers' curatorial authority is the asset — accessibility is the brand, exclusivity damages it."
     },
     {
       "entity": "Netflix",
       "type": "platform",
-      "nature": "Key buyer relationship"
+      "nature": "Active buyer — American Proof pitched",
+      "notes": "Sarah Acosta has existing Netflix relationship via animation project. Netflix concentrating prestige scripted — fewer bets, higher stakes, proven talent. Franchise replacement crisis — lost 7 of top 12 scripted shows within 12 months including Stranger Things (32.9M viewers, most-watched series of 2025-26 season). American Proof well-positioned as fully packaged prestige project. Netflix also active on video podcast strategy — daytime video programming block, not a podcast platform."
+    },
+    {
+      "entity": "AMC",
+      "type": "platform",
+      "nature": "Active buyer — American Proof pitched"
     },
     {
       "entity": "Hulu",
       "type": "platform",
-      "nature": "Key buyer relationship"
+      "nature": "Key buyer relationship — American Proof checking"
+    },
+    {
+      "entity": "WME",
+      "type": "agency",
+      "nature": "Repping Somnia"
     }
   ],
   "active_conversations": [
-    "Audiochuck scripted TV role",
-    "Sony first-look development slate"
+    "American Proof — active pitching, AMC and Netflix meetings occurred, checking Hulu and Starz",
+    "Unwell — supervisor search active, Kira Snyder in conversation",
+    "Somnia — supervisor search active before going to buyers",
+    "Fox & Hound — Sony Zoom meetings upcoming, supervising producer search via Geoff Silverman and Jennifer Levine",
+    "The Grapevine — pursuing rights, need answers from Sokoloff/Robertson rep",
+    "Audiochuck scripted TV role — Matt Shanfield, role still forming",
+    "Sony first-look renewal — Katherine Pope/Lauren Stein conversation needed"
   ],
-  "updated_at": "2026-04-01"
+  "updated_at": "2026-07-14"
 }
