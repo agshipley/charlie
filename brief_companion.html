@@ -370,6 +370,19 @@ const TIER_CONFIG = {
   tier_3: { key: "world",  label: "Your World" }
 };
 
+const SLATE_CONTEXT = `Active projects:
+- American Proof: Prestige scripted. Kentucky bourbon dynasty drama. Writer Sarah Acosta (has existing Netflix relationship via animation project), EP/showrun Dawn Prestwich & Nicole Yorkin. Pitching actively — AMC and Netflix meetings occurred. Sony co-financing. Primary targets: Netflix, Apple TV+. Strong talent package, no creator economy attachment.
+- Unwell: Based on award-winning fiction podcast by Dani Parker & Tobin Addington. Psychological horror, mother-daughter relationship, Dark Sky community setting. Sony attached. Supervisor search active — Kira Snyder in conversation. Target: Freeform (Sony-aligned). Story-driven not creator-led — podcast is source material and audience infrastructure.
+- Fox & Hound: Book-based crime drama. Husband-wife PI team pulled back into ultra-wealthy LA world. Writers Brian Horiuchi & Rowan Maness, VJ Boyd as supervising producer. Sony Zoom meetings upcoming. Lead with book not the broadcast-developed script.
+- Somnia: High-concept sci-fi thriller. Dream-sharing platform, snuff film, tech noir. Writer Denise Harkavy. Pilot complete. Sony passed (IP conflict, not quality). WME repping. Supervisor search active before going to buyers. Primary targets: HBO, Netflix.
+- Generational Love: Dual-timeline prestige romantic drama. On hold as TV series — feature adaptation in discussion. Writer Beth Schwartz. Sony passed at renewal.
+- The Grapevine: Book-based crime procedural. Middle-aged history professor drives the I-5 corridor to find her missing daughter. Alexandra Sokoloff & Craig Robertson (authors). Taylor Sheridan for women thesis. Kate Winslet/Charles Melton casting argument. 45+ female audience. Early development — pursuing rights. Targets: Peacock, Paramount+, AMC.
+
+Key relationships:
+- Sony Pictures Television: First-look deal, renewed 1+1 through May 2027. Katherine Pope (studio), Lauren Stein (creative), Ali Roland (covering exec). Pope's bandwidth compressed after absorbing nonfiction division. Sony shifting toward financing/distribution model, less internal development capacity.
+- Audiochuck: Head of Scripted TV opportunity under Matt Shanfield. Role still forming. Chernin-backed, UTA-repped. Non-exclusive windowing is correct for the brand. Scripted adaptations sell project by project.
+- Netflix: Active buyer — American Proof pitched. Franchise replacement crisis (lost 7 of top 12 scripted shows). Sarah Acosta relationship in place.`;
+
 let QUESTIONS = [];
 let flagged = [];
 let ghToken = "";
@@ -396,12 +409,10 @@ async function loadBrief() {
   status.className = "url-status";
 
   try {
-    // Extract date from URL
     const match = url.match(/(\d{4}-\d{2}-\d{2})$/);
     if (!match) throw new Error("URL must end with a date like 2026-04-02");
     currentBriefDate = match[1];
 
-    // Fetch the brief JSON from Charlie's API
     const apiUrl = `${BRIEF_BASE}/api/brief/${currentBriefDate}`;
     const res = await fetch(apiUrl);
 
@@ -409,7 +420,6 @@ async function loadBrief() {
     const data = await res.json();
     const brief = data.brief || data;
 
-    // Build questions from tiers
     QUESTIONS = [];
     for (const [tierKey, config] of Object.entries(TIER_CONFIG)) {
       const tier = brief[tierKey];
@@ -426,7 +436,6 @@ async function loadBrief() {
 
     if (QUESTIONS.length === 0) throw new Error("No questions found in brief");
 
-    // Update header
     const d = new Date(currentBriefDate + "T12:00:00");
     document.getElementById("brief-date").textContent = d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
     document.getElementById("brief-link").href = url;
@@ -478,9 +487,9 @@ function renderQuestions() {
       <div class="q-context">${q.body}</div>
       <div class="q-text">→ ${q.question}</div>
       <div class="q-actions">
-        <button class="btn-discuss" onclick="discuss(${i})">Discuss ↗</button>
+        <button class="btn-discuss" onclick="discuss(${i})">Harder read ↗</button>
         <button onclick="unpack(${i})">Unpack context ↗</button>
-        <button onclick="connect(${i})">Connect to my world ↗</button>
+        <button onclick="connect(${i})">Connect to my slate ↗</button>
         ${isFlagged
           ? `<button class="btn-flagged" disabled>Flagged ✓</button>`
           : `<button onclick="flagItem(${i})">Flag for watchlist</button>`}
@@ -491,17 +500,43 @@ function renderQuestions() {
 
 function discuss(i) {
   const q = QUESTIONS[i];
-  clip(`Let's dig into this question from today's Brief — ${q.tierLabel} (${q.headline}):\n\n"${q.question}"\n\nContext: ${q.body}\n\nBe Socratic — push back and ask me follow-up questions. Unpack the structural forces. And connect it to my projects (Generational Love, Unwell, Fox & Hound, American Proof, Somnia), my Sony first-look deal, and the Audiochuck/Shanfield conversation where relevant.`, "Prompt copied — paste into Claude ↗");
+  clip(`Before engaging with this question from today's Brief, give me the hardest read first.
+
+${q.tierLabel} — ${q.headline}
+
+"${q.question}"
+
+Context: ${q.body}
+
+Start with what's wrong with Charlie's framing — what the less comfortable interpretation is, what competing readings exist that the brief didn't surface, and whether the evidence actually supports the conclusion or just fits the thesis. Name any single-interpretation problems, any inference built on unverified foundations, any corporate self-description being taken at face value.
+
+Then open into the fuller conversation: unpack the structural forces, push back on my assumptions, and connect to my slate where genuinely relevant. Don't affirm the thesis framing until you've stress-tested it.
+
+${SLATE_CONTEXT}`, "Prompt copied — paste into Claude ↗");
 }
 
 function unpack(i) {
   const q = QUESTIONS[i];
-  clip(`Unpack the context behind this question from today's Brief — ${q.tierLabel} (${q.headline}):\n\n"${q.question}"\n\nContext: ${q.body}\n\nWhat are the full structural forces at play and what would it mean if the answer goes one way vs. the other?`, "Prompt copied — paste into Claude ↗");
+  clip(`Unpack the context behind this question from today's Brief — ${q.tierLabel} (${q.headline}):
+
+"${q.question}"
+
+Context: ${q.body}
+
+What are the full structural forces at play? Before landing on an interpretation, give me at least two competing readings of what this signal actually means — then tell me which one the evidence supports and why. Flag any place where the brief may be taking the comfortable read over the harder one.`, "Prompt copied — paste into Claude ↗");
 }
 
 function connect(i) {
   const q = QUESTIONS[i];
-  clip(`Connect this question from today's Brief to my specific situation — ${q.tierLabel} (${q.headline}):\n\n"${q.question}"\n\nContext: ${q.body}\n\nGiven my active projects (Generational Love, Unwell, Fox & Hound, American Proof, Somnia), Sony first-look deal, and the Audiochuck/Shanfield conversation — how does this intersect with where I am right now?`, "Prompt copied — paste into Claude ↗");
+  clip(`Connect this question from today's Brief to my specific situation — ${q.tierLabel} (${q.headline}):
+
+"${q.question}"
+
+Context: ${q.body}
+
+${SLATE_CONTEXT}
+
+Where does this signal actually intersect with my slate and live conversations — and where is the connection forced or superficial? Be specific about which projects and which relationships are genuinely affected, and which aren't. Don't connect everything to everything.`, "Prompt copied — paste into Claude ↗");
 }
 
 function flagItem(i) {
