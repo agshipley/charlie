@@ -8,6 +8,24 @@ Built for Liz Varner. Operated by Andrew Shipley.
 
 ---
 
+## System at a glance
+
+Charlie is a **single-reader, scheduled research workflow**, not a general-purpose multi-tenant intelligence platform. It continuously gathers evidence, converts it into structured signals, evaluates their implications, publishes a short briefing, and periodically proposes revisions to an ongoing strategic thesis.
+
+| Concern | Design choice |
+|---|---|
+| **Orchestration** | Separate ingestion, analysis, editorial, adversarial, and weekly thesis agents; model calls run through a shared tool-use/retry layer |
+| **Evidence and inference** | Source-linked signal records are retained separately from analytical conclusions and the evolving thesis |
+| **Evaluation** | An adversarial reviewer flags flattery, repetitive framing, unsupported inference, and missed stories; its output runs in **shadow mode**, not as an automatic publication gate |
+| **Human authority** | Weekly thesis revisions require review and publication; adversarial feedback does not silently update prompts or policy |
+| **Operational boundary** | Intentionally single-user, with JSON-based state, scheduled Railway execution, and a persistent volume rather than a multi-tenant database |
+
+The hard problem here is **sustained analytical discipline over time**: identifying genuinely new developments, separating evidence from conjecture, and resisting the tendency of an agent to reproduce yesterday's narrative. The design emphasizes transparent failure modes and human judgment rather than claiming fully autonomous editorial accuracy.
+
+Start with the [daily and weekly pipeline diagrams](#architecture) or the [adversary implementation notes](#agentsadversarypy) for the technical details.
+
+---
+
 ## Table of contents
 
 1. [What the system does](#what-the-system-does)
